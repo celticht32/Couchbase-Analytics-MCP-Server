@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="900" height="650" viewBox="0 0 900 650" xmlns="http://www.w3.org/2000/svg">
+<rect width="900" height="650" fill="#0d1117"/>
+<rect x="0" y="0" width="900" height="50" fill="#161b22" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="450" y="31" fill="#e6edf3" font-size="16" text-anchor="middle" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Configuration Sources &amp; Resolution Order</text>
+<rect x="50" y="80" width="200" height="90" fill="#21262d" stroke="#d2a8ff" stroke-width="1.5" rx="8" opacity="1"/>
+<text x="150" y="104" fill="#d2a8ff" font-size="10" text-anchor="middle" font-weight="700" font-family="Inter, Segoe UI, Arial, sans-serif">1. Constructor kwargs</text>
+<text x="150" y="126" fill="#8b949e" font-size="9" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Highest priority</text>
+<text x="150" y="142" fill="#8b949e" font-size="9" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Overrides everything</text>
+<rect x="280" y="80" width="200" height="90" fill="#21262d" stroke="#58a6ff" stroke-width="1.5" rx="8" opacity="1"/>
+<text x="380" y="104" fill="#58a6ff" font-size="10" text-anchor="middle" font-weight="700" font-family="Inter, Segoe UI, Arial, sans-serif">2. Environment variables</text>
+<text x="380" y="126" fill="#8b949e" font-size="9" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">CB_ANALYTICS_* prefix</text>
+<text x="380" y="142" fill="#8b949e" font-size="9" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">OS-level or .env file</text>
+<rect x="510" y="80" width="200" height="90" fill="#21262d" stroke="#3fb950" stroke-width="1.5" rx="8" opacity="1"/>
+<text x="610" y="104" fill="#3fb950" font-size="10" text-anchor="middle" font-weight="700" font-family="Inter, Segoe UI, Arial, sans-serif">3. .env file</text>
+<text x="610" y="126" fill="#8b949e" font-size="9" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">python-dotenv</text>
+<text x="610" y="142" fill="#8b949e" font-size="9" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">loaded by pydantic-settings</text>
+<rect x="740" y="80" width="200" height="90" fill="#21262d" stroke="#8b949e" stroke-width="1.5" rx="8" opacity="1"/>
+<text x="840" y="104" fill="#8b949e" font-size="10" text-anchor="middle" font-weight="700" font-family="Inter, Segoe UI, Arial, sans-serif">4. Defaults</text>
+<text x="840" y="126" fill="#8b949e" font-size="9" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">localhost:8091/:8095</text>
+<text x="840" y="142" fill="#8b949e" font-size="9" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Administrator/password</text>
+<polygon points="242,120 262,120 252,136" fill="#8b949e" opacity="0.4"/>
+<polygon points="472,120 492,120 482,136" fill="#8b949e" opacity="0.4"/>
+<polygon points="702,120 722,120 712,136" fill="#8b949e" opacity="0.4"/>
+<rect x="50" y="200" width="800" height="380" fill="#161b22" stroke="#30363d" stroke-width="1.5" rx="8" opacity="1"/>
+<text x="450" y="224" fill="#e6edf3" font-size="13" text-anchor="middle" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">AnalyticsClientConfig Fields</text>
+<rect x="50" y="234" width="800" height="24" fill="#21262d" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="250" fill="#58a6ff" font-size="10" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Environment Variable</text>
+<text x="280" y="250" fill="#58a6ff" font-size="10" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Attribute</text>
+<text x="390" y="250" fill="#58a6ff" font-size="10" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Type</text>
+<text x="450" y="250" fill="#58a6ff" font-size="10" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Default</text>
+<text x="510" y="250" fill="#58a6ff" font-size="10" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Description</text>
+<rect x="50" y="260" width="800" height="33" fill="#21262d" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="278" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_HOST</text>
+<text x="280" y="278" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">host</text>
+<text x="390" y="278" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">str</text>
+<text x="450" y="278" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">localhost</text>
+<text x="510" y="278" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Cluster hostname or IP address</text>
+<rect x="50" y="293" width="800" height="33" fill="#161b22" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="311" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_MGMT_PORT</text>
+<text x="280" y="311" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">mgmt_port</text>
+<text x="390" y="311" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">int</text>
+<text x="450" y="311" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">8091</text>
+<text x="510" y="311" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Management API port (18091 for TLS)</text>
+<rect x="50" y="326" width="800" height="33" fill="#21262d" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="344" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_ANALYTICS_PORT</text>
+<text x="280" y="344" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">analytics_port</text>
+<text x="390" y="344" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">int</text>
+<text x="450" y="344" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">8095</text>
+<text x="510" y="344" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Analytics API port (18095 for TLS)</text>
+<rect x="50" y="359" width="800" height="33" fill="#161b22" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="377" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_USERNAME</text>
+<text x="280" y="377" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">username</text>
+<text x="390" y="377" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">str</text>
+<text x="450" y="377" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Administrator</text>
+<text x="510" y="377" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Couchbase RBAC username</text>
+<rect x="50" y="392" width="800" height="33" fill="#21262d" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="410" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_PASSWORD</text>
+<text x="280" y="410" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">password</text>
+<text x="390" y="410" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">str</text>
+<text x="450" y="410" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">password</text>
+<text x="510" y="410" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">RBAC password (use secrets manager)</text>
+<rect x="50" y="425" width="800" height="33" fill="#161b22" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="443" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_TLS</text>
+<text x="280" y="443" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">tls</text>
+<text x="390" y="443" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">bool</text>
+<text x="450" y="443" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">false</text>
+<text x="510" y="443" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Enable HTTPS; changes URL scheme</text>
+<rect x="50" y="458" width="800" height="33" fill="#21262d" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="476" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_VERIFY_SSL</text>
+<text x="280" y="476" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">verify_ssl</text>
+<text x="390" y="476" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">bool</text>
+<text x="450" y="476" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">true</text>
+<text x="510" y="476" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Verify TLS cert (false for self-signed)</text>
+<rect x="50" y="491" width="800" height="33" fill="#161b22" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="509" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_TIMEOUT_SECONDS</text>
+<text x="280" y="509" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">timeout_seconds</text>
+<text x="390" y="509" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">float</text>
+<text x="450" y="509" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">60.0</text>
+<text x="510" y="509" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Per-request timeout in seconds</text>
+<rect x="50" y="524" width="800" height="33" fill="#21262d" stroke="#30363d" stroke-width="1.5" rx="0" opacity="1"/>
+<text x="60" y="542" fill="#e3b341" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">CB_ANALYTICS_MAX_RETRIES</text>
+<text x="280" y="542" fill="#e6edf3" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">max_retries</text>
+<text x="390" y="542" fill="#39d353" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">int</text>
+<text x="450" y="542" fill="#3fb950" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">3</text>
+<text x="510" y="542" fill="#8b949e" font-size="9" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Retry attempts for transient errors</text>
+<rect x="50" y="570" width="800" height="60" fill="#21262d" stroke="#3fb950" stroke-width="1.5" rx="8" opacity="1"/>
+<text x="450" y="592" fill="#3fb950" font-size="11" text-anchor="middle" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Computed Properties</text>
+<text x="200" y="610" fill="#39d353" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">management_url  →  http[s]://host:mgmt_port</text>
+<text x="200" y="624" fill="#39d353" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">analytics_url   →  http[s]://host:analytics_port</text>
+</svg>

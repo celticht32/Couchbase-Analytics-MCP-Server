@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="580" viewBox="0 0 1000 580" xmlns="http://www.w3.org/2000/svg">
+<rect width="1000" height="580" fill="#0d1117"/>
+<!-- Drop shadow on window -->
+<rect x="8" y="8" width="984" height="564" fill="#000" rx="10" opacity="0.5"/>
+<rect x="4" y="4" width="992" height="572" fill="#161b22" rx="10" stroke="#30363d" stroke-width="1.5"/>
+<!-- Title bar -->
+<rect x="4" y="4" width="992" height="36" fill="#21262d" rx="10"/>
+<rect x="4" y="30" width="992" height="10" fill="#21262d"/>
+<!-- Traffic lights -->
+<circle cx="24" cy="22" r="6" fill="#ff5f57"/>
+<circle cx="44" cy="22" r="6" fill="#ffbd2e"/>
+<circle cx="64" cy="22" r="6" fill="#28c840"/>
+<!-- Window title -->
+<text x="500" y="26" fill="#8b949e" font-size="12" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">cb-analytics — Couchbase Enterprise Analytics</text>
+<rect x="4" y="40" width="992" height="30" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="60" fill="#e6edf3" font-size="13" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Couchbase Enterprise Analytics</text>
+<text x="800" y="60" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">REST API Client</text>
+<rect x="250" y="110" width="500" height="380" fill="#21262d" stroke="#58a6ff" stroke-width="1" rx="8" opacity="1.0"/>
+<text x="500" y="142" fill="#58a6ff" font-size="14" text-anchor="middle" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">🔌  Connect to Couchbase Enterprise Analytics</text>
+<text x="268" y="120" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Host</text>
+<rect x="368" y="106" width="360" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="4" opacity="1.0"/>
+<text x="376" y="123" fill="#e6edf3" font-size="11" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">localhost</text>
+<text x="268" y="172" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Management Port</text>
+<rect x="368" y="158" width="360" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="4" opacity="1.0"/>
+<text x="376" y="175" fill="#e6edf3" font-size="11" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">8091</text>
+<text x="268" y="224" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Analytics Port</text>
+<rect x="368" y="210" width="360" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="4" opacity="1.0"/>
+<text x="376" y="227" fill="#e6edf3" font-size="11" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">8095</text>
+<text x="268" y="276" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Username</text>
+<rect x="368" y="262" width="360" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="4" opacity="1.0"/>
+<text x="376" y="279" fill="#e6edf3" font-size="11" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Administrator</text>
+<text x="268" y="328" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Password</text>
+<rect x="368" y="314" width="360" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="4" opacity="1.0"/>
+<text x="376" y="331" fill="#8b949e" font-size="11" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">••••••••</text>
+<rect x="328" y="400" width="140" height="32" fill="#58a6ff" stroke="#58a6ff" stroke-width="1" rx="6" opacity="1.0"/>
+<text x="398" y="421" fill="#0d1117" font-size="12" text-anchor="middle" font-weight="700" font-family="Inter, Segoe UI, Arial, sans-serif">Connect</text>
+<rect x="482" y="400" width="120" height="32" fill="#21262d" stroke="#30363d" stroke-width="1" rx="6" opacity="1.0"/>
+<text x="542" y="421" fill="#8b949e" font-size="12" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Quit</text>
+<rect x="4" y="550" width="992" height="24" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="566" fill="#8b949e" font-size="10" text-anchor="start" font-weight="normal" font-family="JetBrains Mono, Consolas, monospace">Escape: Quit</text>
+</svg>

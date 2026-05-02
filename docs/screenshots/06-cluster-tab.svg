@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="464" viewBox="0 0 1000 464" xmlns="http://www.w3.org/2000/svg">
+<rect width="1000" height="464" fill="#0d1117"/>
+<!-- Drop shadow on window -->
+<rect x="8" y="8" width="984" height="448" fill="#000" rx="10" opacity="0.5"/>
+<rect x="4" y="4" width="992" height="456" fill="#161b22" rx="10" stroke="#30363d" stroke-width="1.5"/>
+<!-- Title bar -->
+<rect x="4" y="4" width="992" height="36" fill="#21262d" rx="10"/>
+<rect x="4" y="30" width="992" height="10" fill="#21262d"/>
+<!-- Traffic lights -->
+<circle cx="24" cy="22" r="6" fill="#ff5f57"/>
+<circle cx="44" cy="22" r="6" fill="#ffbd2e"/>
+<circle cx="64" cy="22" r="6" fill="#28c840"/>
+<!-- Window title -->
+<text x="500" y="26" fill="#8b949e" font-size="12" text-anchor="middle" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">cb-analytics — Couchbase Enterprise Analytics</text>
+<rect x="4" y="40" width="992" height="30" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="60" fill="#e6edf3" font-size="13" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Couchbase Enterprise Analytics</text>
+<rect x="4" y="74" width="104" height="28" fill="#161b22" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="16" y="92" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Query [F1]</text>
+<rect x="108" y="74" width="120" height="28" fill="#161b22" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="120" y="92" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Monitor [F2]</text>
+<rect x="228" y="74" width="112" height="28" fill="#161b22" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="240" y="92" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Config [F3]</text>
+<rect x="340" y="74" width="96" height="28" fill="#161b22" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="352" y="92" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">RBAC [F4]</text>
+<rect x="436" y="74" width="104" height="28" fill="#161b22" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="448" y="92" fill="#8b949e" font-size="11" text-anchor="start" font-weight="normal" font-family="Inter, Segoe UI, Arial, sans-serif">Links [F5]</text>
+<rect x="540" y="74" width="120" height="28" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<rect x="540" y="100" width="120" height="2" fill="#f78166"/>
+<text x="552" y="92" fill="#f78166" font-size="11" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Cluster [F6]</text>
+<rect x="10" y="108" width="980" height="38" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<rect x="16" y="116" width="90" height="22" fill="#58a6ff" stroke="#58a6ff" stroke-width="1" rx="4" opacity="1.0"/>
+<text x="61" y="131" fill="#0d1117" font-size="11" text-anchor="middle" font-weight="700" font-family="Inter, Segoe UI, Arial, sans-serif">Refresh</text>
+<text x="20" y="166" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Nodes</text>
+<rect x="10" y="174" width="980" height="24" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="190" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Hostname</text>
+<text x="300" y="190" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Status</text>
+<text x="420" y="190" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Services</text>
+<rect x="10" y="198" width="980" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="214" fill="#e6edf3" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">node1.analytics.cluster</text>
+<text x="300" y="214" fill="#3fb950" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">healthy</text>
+<text x="420" y="214" fill="#79c0ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">kv, cbas</text>
+<rect x="10" y="222" width="980" height="24" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="238" fill="#e6edf3" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">node2.analytics.cluster</text>
+<text x="300" y="238" fill="#3fb950" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">healthy</text>
+<text x="420" y="238" fill="#79c0ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">kv, cbas</text>
+<rect x="10" y="246" width="980" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="262" fill="#e6edf3" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">node3.analytics.cluster</text>
+<text x="300" y="262" fill="#3fb950" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">healthy</text>
+<text x="420" y="262" fill="#79c0ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">kv</text>
+<text x="20" y="278" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Server Groups</text>
+<rect x="10" y="286" width="980" height="24" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="302" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Group Name</text>
+<text x="300" y="302" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Node Count</text>
+<text x="420" y="302" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Nodes</text>
+<rect x="10" y="310" width="980" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="326" fill="#e3b341" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Group 1 (default)</text>
+<text x="300" y="326" fill="#e6edf3" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">2</text>
+<text x="420" y="326" fill="#8b949e" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">node1, node2</text>
+<rect x="10" y="334" width="980" height="24" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="350" fill="#e3b341" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Group 2</text>
+<text x="300" y="350" fill="#e6edf3" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">1</text>
+<text x="420" y="350" fill="#8b949e" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">node3</text>
+<text x="20" y="372" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600" font-family="Inter, Segoe UI, Arial, sans-serif">Active Cluster Tasks</text>
+<rect x="10" y="380" width="980" height="24" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="396" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Type</text>
+<text x="250" y="396" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Status</text>
+<text x="380" y="396" fill="#58a6ff" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">Progress</text>
+<rect x="10" y="404" width="980" height="24" fill="#0d1117" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="420" fill="#8b949e" font-size="10" text-anchor="start" font-family="JetBrains Mono, Consolas, monospace">(no active tasks)</text>
+<rect x="4" y="434" width="992" height="24" fill="#21262d" stroke="#30363d" stroke-width="1" rx="0" opacity="1.0"/>
+<text x="20" y="450" fill="#8b949e" font-size="10" text-anchor="start" font-weight="normal" font-family="JetBrains Mono, Consolas, monospace">F1-F6: Switch Tab  ·  Ctrl+R: Refresh  ·  Ctrl+Q: Quit</text>
+</svg>

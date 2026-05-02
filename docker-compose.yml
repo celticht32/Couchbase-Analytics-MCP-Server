@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  couchbase:
+    image: couchbase/server:enterprise-7.6.0
+    container_name: cb-analytics-test
+    ports:
+      - "8091:8091"
+      - "8092:8092"
+      - "8093:8093"
+      - "8094:8094"
+      - "8095:8095"
+      - "8096:8096"
+      - "11210:11210"
+    volumes:
+      - cb-data:/opt/couchbase/var
+      - ./scripts/cb-init.sh:/entrypoint.d/init.sh:ro
+    environment:
+      CB_REST_USERNAME: Administrator
+      CB_REST_PASSWORD: password
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8091/pools"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+
+volumes:
+  cb-data:
