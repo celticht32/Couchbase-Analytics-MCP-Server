@@ -92,3 +92,26 @@ The community convention is `<source>-<purpose>`, e.g. `s3-events`,
 - Don't switch a link's `type` via update; delete and recreate instead.
 - Don't rotate credentials by deleting + recreating — use `update_link` so
   existing datasets stay attached.
+
+## Rate limits & safety
+
+Link tools split across categories:
+
+- **`read`** (60/sec): `list_links`, `get_link`.
+- **`write`** (1/sec, intentional): `create_link`, `update_link`,
+  `delete_link`.
+
+Link mutations are destructive — deleting a link with attached datasets
+breaks downstream queries; updating credentials wrong takes ingestion
+offline. The 1/sec write limit is deliberately constraining. If you're
+batch-creating links from a config file, sequence the calls and accept
+the throttling.
+
+If `RateLimitExceeded` comes back from a `create_link` / `update_link` /
+`delete_link`, honour `retry_after_sec`. Don't retry-storm — sleep for
+the indicated duration, then continue.
+
+`list_links` and `get_link` share the global `read` bucket with every
+other read-only tool on the server. In a "show me everything about the
+link landscape" workflow, prefer one `list_links` plus targeted
+`get_link` calls over polling.

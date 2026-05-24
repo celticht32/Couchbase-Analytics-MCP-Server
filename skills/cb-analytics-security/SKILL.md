@@ -95,3 +95,31 @@ Groups bundle role assignments and apply them to multiple users. Workflow:
 - Don't echo a generated password back to the chat — show it once via a
   side channel (1Password, vault, etc.) and ask the user to confirm it's
   stored.
+
+## Rate limits & safety
+
+Security/RBAC tools split across two categories:
+
+- **`read`** (60/sec): `list_users`, `get_user`, `list_groups`,
+  `list_roles`, `check_permissions`.
+- **`write`** (1/sec, intentionally tight): `upsert_user`, `delete_user`,
+  `upsert_group`, `delete_group`.
+
+The 1/sec write limit is deliberate — RBAC changes are durable cluster
+state and the typical error mode is "did something irreversible
+quickly". Bulk-provisioning users from a roster? Sequence them, accept
+the ~1 second per user.
+
+If `RateLimitExceeded` comes back on an `upsert_user` or `delete_user`,
+honour `retry_after_sec`. Don't retry-storm.
+
+Reads (`list_users`, `check_permissions`, etc.) share the global `read`
+bucket. If you're auditing a permissions matrix, batch — one
+`list_users` then targeted `check_permissions` calls is friendlier than
+calling `get_user` per user-per-role combination.
+
+Worth noting: rate limits are per **API key**, not per cluster. If a
+single bearer token is doing both heavy RBAC bulk-load AND read-heavy
+inspection at the same time, they contend for separate buckets, but the
+bulk-load can starve other writes on the same key. Use distinct API
+keys per workload if this matters.

@@ -65,3 +65,23 @@ Use this for post-incident triage:
 - Don't disable auto-failover in production unless you have an immediate
   reason and a plan to re-enable. Note the original values in chat before
   you change them so they're easy to restore.
+
+## Rate limits & safety
+
+Cluster tools are almost all `read` (60/sec):
+`ping_cluster`, `get_cluster_info`, `get_cluster_details`,
+`get_cluster_tasks`, `get_rebalance_progress`,
+`get_auto_failover_settings`, `get_system_events`, `who_am_i`.
+
+The single `write` (1/sec) tool here is `configure_auto_failover` —
+matches the safety advice above: never call this without explicit
+confirmation, and the rate limit gives you exactly one shot per second
+to fat-finger it.
+
+When polling `get_rebalance_progress` during a long rebalance, the read
+rate (60/sec) is plenty but the management endpoint is shared with the
+GUI. Once every 2–5 seconds is the polite poll interval; faster won't
+get you better data and stresses the management plane.
+
+If `RateLimitExceeded` comes back, honour `retry_after_sec` — back off,
+don't retry-storm.

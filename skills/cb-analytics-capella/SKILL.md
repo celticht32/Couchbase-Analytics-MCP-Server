@@ -77,3 +77,26 @@ discover them — the tools don't accept names.
 - Don't poll cluster status faster than every 30 seconds for long-running
   provisions; Capella throttles.
 - Don't store the Capella API key in plain config files. Use the env var.
+
+## Rate limits & safety
+
+Capella tools split across rate-limit categories:
+
+- **`read`** (60/sec): `capella_list_organizations`, `capella_list_clusters`,
+  `capella_get_cluster`, `capella_list_backups`, `capella_list_api_keys`.
+- **`write`** (1/sec): `capella_create_cluster`, `capella_delete_cluster`,
+  `capella_create_backup`, `capella_restore_backup`.
+
+Capella's own API throttles separately and more aggressively than our
+local rate limit — long-running provisions reject status polling faster
+than every ~30 seconds. So both buckets exist: ours (per-API-key,
+in-process) plus Capella's (their service).
+
+If a `RateLimitExceeded` comes back from our server, honour
+`retry_after_sec`. If a 429/throttle comes from Capella itself, surface
+the message verbatim — it usually names the offending limit.
+
+Don't try to work around the write-rate limit on `capella_delete_cluster`
+or `capella_restore_backup` by raising `RATE_LIMIT_WRITE_PER_SEC`. The
+limit is there precisely because these operations are destructive at
+cloud scale.

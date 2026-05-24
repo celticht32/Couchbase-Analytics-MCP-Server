@@ -65,3 +65,27 @@ A typical workflow:
   document scan and will be slow.
 - Don't assume the sample covers every variant of the document shape.
   Treat `infer_schema` output as a starting point, not a contract.
+
+## Rate limits & safety
+
+Schema tools split across two rate-limit categories:
+
+- **`read`** (60/sec): `list_dataverses`, `list_datasets`.
+- **`query`** (10/sec): `infer_schema`.
+
+`infer_schema` is `query` category — not `read` — because under the hood
+it runs a `SELECT` that scans a sample of documents from the dataset.
+That makes it relatively expensive and it shares the **same 10/sec
+bucket as every other query tool** (`execute_query`,
+`execute_query_readonly`, `execute_query_paginated`, `fetch_next_page`,
+`explain_query`).
+
+Practical implication: if you're enumerating schemas across many
+datasets, you'll hit the query bucket faster than the read bucket.
+Recommended pattern: one `list_dataverses` → one `list_datasets` per
+dataverse (read budget) → then `infer_schema` calls spaced ≥ 100ms
+apart (query budget).
+
+If `RateLimitExceeded` comes back on an `infer_schema`, the bucket is
+probably being shared with concurrent `execute_query*` calls. Honour
+`retry_after_sec` and back off.

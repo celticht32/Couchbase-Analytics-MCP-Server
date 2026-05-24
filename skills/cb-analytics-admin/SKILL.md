@@ -62,3 +62,23 @@ the returned `ok` field.
   completed; it's a no-op but generates a confusing error.
 - Don't poll `get_active_requests` aggressively (e.g. every second). Once
   per few seconds is fine.
+
+## Rate limits & safety
+
+Admin tools split across two rate-limit categories:
+
+- **`read`** (60/sec): `get_service_status`, `get_ingestion_status`,
+  `get_active_requests`, `get_completed_requests`.
+- **`write`** (1/sec, intentionally conservative): `cancel_request`,
+  `restart_service`, `restart_node`.
+
+The write bucket is small on purpose. Cancelling one runaway query per
+second is plenty; restarting a service every second would be madness.
+If a `RateLimitExceeded` response comes back, the response includes
+`retry_after_sec` — honour it. Don't retry-storm; that just keeps the
+bucket empty.
+
+Status calls share the read bucket with every other read-only tool across
+the server (list_users, list_clusters, ping_cluster, etc.). If you're
+polling status in a loop, keep the interval ≥ 2 seconds so the bucket
+stays healthy for other concurrent work.
