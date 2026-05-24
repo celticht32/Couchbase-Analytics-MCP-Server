@@ -1,0 +1,71 @@
+# Copyright (c) 2026 Chris Ahrendt
+# SPDX-License-Identifier: MIT
+#
+# Example production-flavoured stack:
+#   - cb-analytics-mcp: the server itself
+#   - nginx: TLS termination + path-based routing
+#   - prometheus (commented out): scrapes the metrics endpoint
+#
+# Run: docker compose up -d
+# View logs: docker compose logs -f mcp
+
+services:
+  mcp:
+    build: .
+    image: cb-analytics-mcp:latest
+    container_name: cb-analytics-mcp
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      # Persist the audit log on the host
+      - cb-mcp-audit:/var/lib/cb-analytics-mcp
+      # Optional multi-cluster config — only mounted when present
+      - ./config:/etc/cb-analytics-mcp:ro
+    expose:
+      # Not published to the host — nginx is the public face
+      - "8000"
+      - "8080"
+      - "9100"
+    networks:
+      - mcp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/healthz',timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: cb-mcp-nginx
+    restart: unless-stopped
+    depends_on:
+      - mcp
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Put TLS cert + key here (named cert.pem / key.pem)
+      - ./nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - mcp
+
+  # Uncomment to scrape metrics with Prometheus
+  # prometheus:
+  #   image: prom/prometheus:v2.52.0
+  #   container_name: cb-mcp-prometheus
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - mcp
+
+volumes:
+  cb-mcp-audit:
+
+networks:
+  mcp:
+    driver: bridge

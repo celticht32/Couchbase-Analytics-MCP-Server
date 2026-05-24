@@ -1,0 +1,16 @@
+# Copyright (c) 2026 Chris Ahrendt — SPDX-License-Identifier: MIT
+#
+# Used by the optional `prometheus` service in docker-compose.yml.
+# Uncomment that service to scrape this server's metrics.
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: cb-analytics-mcp
+    static_configs:
+      - targets: ["mcp:9100"]
+        labels:
+          service: cb-analytics-mcp

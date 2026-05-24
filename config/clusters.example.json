@@ -1,0 +1,29 @@
+[
+    {
+        "name": "production",
+        "host": "prod.couchbase.internal",
+        "username": "mcp_user",
+        "password": "REPLACE_ME",
+        "tls": true,
+        "verify_ssl": true,
+        "mgmt_port": 18091,
+        "analytics_port": 18095,
+        "timeout_seconds": 60,
+        "max_retries": 3
+    },
+    {
+        "name": "staging",
+        "host": "staging.couchbase.internal",
+        "username": "mcp_user",
+        "password": "REPLACE_ME",
+        "tls": true,
+        "verify_ssl": true
+    },
+    {
+        "name": "local",
+        "host": "localhost",
+        "username": "Administrator",
+        "password": "password",
+        "tls": false
+    }
+]
