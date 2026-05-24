@@ -1,0 +1,40 @@
+{# Copyright (c) 2026 Chris Ahrendt — MIT License #}
+{% if ok %}
+  <div class="space-y-3 rounded-lg bg-white p-4 ring-1 ring-slate-200">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-slate-900">
+        Result <span class="ml-2 text-xs text-slate-500">({{ result_count }} row{{ '' if result_count == 1 else 's' }})</span>
+      </h2>
+      <div class="flex items-center gap-3 text-xs text-slate-500">
+        <span>cluster: <span class="font-mono">{{ cluster }}</span></span>
+        {% if request_id %}<span>request_id: <span class="font-mono">{{ request_id }}</span></span>{% endif %}
+      </div>
+    </div>
+
+    {% if metrics %}
+      <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+        {% if metrics.executionTime %}<div><span class="text-slate-500">execution:</span> {{ metrics.executionTime }}</div>{% endif %}
+        {% if metrics.elapsedTime %}<div><span class="text-slate-500">elapsed:</span> {{ metrics.elapsedTime }}</div>{% endif %}
+        {% if metrics.resultCount is not none %}<div><span class="text-slate-500">resultCount:</span> {{ metrics.resultCount }}</div>{% endif %}
+        {% if metrics.processedObjects is not none %}<div><span class="text-slate-500">processed:</span> {{ metrics.processedObjects }}</div>{% endif %}
+      </div>
+    {% endif %}
+
+    {% if warnings %}
+      <div class="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">
+        {% for w in warnings %}
+          <div><strong>warning {{ w.code }}:</strong> {{ w.msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <pre class="max-h-96 overflow-auto rounded bg-slate-900 p-3 font-mono text-xs text-slate-100"><code>{{ results_json }}</code></pre>
+  </div>
+{% else %}
+  <div class="rounded-lg bg-red-50 p-4 ring-1 ring-red-200">
+    <h2 class="text-sm font-semibold text-red-800">
+      {{ error }}{% if cluster %} <span class="ml-2 text-xs">({{ cluster }})</span>{% endif %}
+    </h2>
+    <p class="mt-2 font-mono text-xs text-red-700">{{ message }}</p>
+  </div>
+{% endif %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+{% block content %}
+  <div class="space-y-4">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">Live logs</h1>
+      <p class="mt-1 text-sm text-slate-600">
+        Reading from
+        <span class="font-mono text-xs">{{ log_file or '(stdout only — LOG_FILE not set)' }}</span>
+        <span id="log-conn-status" class="ml-2 text-xs"></span>
+      </p>
+    </div>
+
+    {# When LOG_FILE is set, prefer WebSocket streaming; the panel below is
+       populated by JavaScript. When LOG_FILE isn't set, fall back to the
+       HTMX-polled tail (which itself surfaces a friendly note). #}
+    {% if log_file_set %}
+      <div id="log-stream-container"
+           class="overflow-hidden rounded-lg bg-slate-900 ring-1 ring-slate-700">
+        <div class="border-b border-slate-700 px-4 py-2 text-xs text-slate-400 flex items-center justify-between">
+          <span id="log-stream-count">Connecting…</span>
+          <span id="log-stream-pid" class="font-mono"></span>
+        </div>
+        <div id="log-stream-rows"
+             class="max-h-[32rem] overflow-auto font-mono text-xs"></div>
+      </div>
+      <noscript>
+        <div class="rounded-lg bg-amber-50 p-4 ring-1 ring-amber-200 text-sm text-amber-800">
+          JavaScript is required for live log streaming. Falling back to HTMX polling.
+        </div>
+        <div id="log-tail"
+             hx-get="/logs/tail"
+             hx-trigger="load, every 5s"
+             hx-swap="innerHTML">
+          <div class="rounded-lg bg-white p-4 ring-1 ring-slate-200 text-sm text-slate-500">
+            Loading…
+          </div>
+        </div>
+      </noscript>
+
+      <script>
+        // Live log streaming via WebSocket, with HTMX polling fallback.
+        (function () {
+          const status = document.getElementById('log-conn-status');
+          const countEl = document.getElementById('log-stream-count');
+          const pidEl = document.getElementById('log-stream-pid');
+          const rowsEl = document.getElementById('log-stream-rows');
+          let received = 0;
+          let ws = null;
+          let fallbackTriggered = false;
+
+          function setStatus(text, color) {
+            status.textContent = text;
+            status.className = 'ml-2 text-xs ' + color;
+          }
+
+          function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, function (c) {
+              return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+            });
+          }
+
+          function levelStyle(level) {
+            switch ((level || 'info').toLowerCase()) {
+              case 'error':
+              case 'critical':
+                return 'bg-red-900/40 text-red-200';
+              case 'warning':
+                return 'bg-amber-900/40 text-amber-200';
+              default:
+                return 'bg-slate-700/60 text-slate-300';
+            }
+          }
+
+          function appendRecord(rec) {
+            const lvl = rec.level || 'info';
+            const lvlClass = levelStyle(lvl);
+            const extras = Object.keys(rec)
+              .filter(function (k) { return ['timestamp','level','event'].indexOf(k) === -1; })
+              .map(function (k) {
+                return '<span class="ml-2 text-slate-400">' + escapeHtml(k) +
+                       '=<span class="text-slate-200">' + escapeHtml(rec[k]) + '</span></span>';
+              })
+              .join('');
+
+            const html =
+              '<div class="px-3 py-1 border-b border-slate-800/40 hover:bg-slate-800/40">' +
+                '<span class="text-slate-500">' + escapeHtml(rec.timestamp || '') + '</span>' +
+                '<span class="ml-2 rounded ' + lvlClass + ' px-1.5 py-0.5">' + escapeHtml(lvl) + '</span>' +
+                '<span class="ml-2 text-slate-100">' + escapeHtml(rec.event || '') + '</span>' +
+                extras +
+              '</div>';
+            rowsEl.insertAdjacentHTML('beforeend', html);
+            received++;
+            countEl.textContent = received + ' line' + (received === 1 ? '' : 's');
+
+            const nearBottom = rowsEl.scrollHeight - rowsEl.scrollTop - rowsEl.clientHeight < 100;
+            if (nearBottom) rowsEl.scrollTop = rowsEl.scrollHeight;
+
+            while (rowsEl.children.length > 1000) {
+              rowsEl.removeChild(rowsEl.firstChild);
+            }
+          }
+
+          function activateHtmxFallback() {
+            if (fallbackTriggered) return;
+            fallbackTriggered = true;
+            setStatus('● polling (WebSocket unavailable)', 'text-amber-600');
+            const container = document.getElementById('log-stream-container');
+            container.outerHTML =
+              '<div id="log-tail"' +
+              ' hx-get="/logs/tail"' +
+              ' hx-trigger="load, every 5s"' +
+              ' hx-swap="innerHTML">' +
+              '<div class="rounded-lg bg-white p-4 ring-1 ring-slate-200 text-sm text-slate-500">Loading…</div>' +
+              '</div>';
+            if (window.htmx) window.htmx.process(document.body);
+          }
+
+          function connect() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const url = proto + '//' + location.host + '/logs/ws';
+            try {
+              ws = new WebSocket(url);
+            } catch (e) {
+              activateHtmxFallback();
+              return;
+            }
+
+            ws.onopen = function () {
+              setStatus('● live', 'text-green-600');
+            };
+            ws.onmessage = function (evt) {
+              let msg;
+              try { msg = JSON.parse(evt.data); } catch (e) { return; }
+              if (msg.type === 'hello') {
+                pidEl.textContent = 'pid ' + msg.pid;
+                countEl.textContent = '0 lines';
+              } else if (msg.type === 'log') {
+                appendRecord(msg.record || {});
+              } else if (msg.type === 'error') {
+                setStatus('● ' + msg.message, 'text-red-600');
+              }
+            };
+            ws.onclose = function (ev) {
+              if (ev.code === 1008) {
+                setStatus('● disconnected (session expired — reload page)', 'text-red-600');
+                return;
+              }
+              activateHtmxFallback();
+            };
+            ws.onerror = function () {
+              // onclose will follow and trigger fallback
+            };
+          }
+
+          connect();
+        })();
+      </script>
+    {% else %}
+      <div id="log-tail"
+           hx-get="/logs/tail"
+           hx-trigger="load, every 5s"
+           hx-swap="innerHTML">
+        <div class="rounded-lg bg-white p-4 ring-1 ring-slate-200 text-sm text-slate-500">
+          Loading…
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

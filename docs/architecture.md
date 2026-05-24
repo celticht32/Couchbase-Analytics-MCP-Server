@@ -33,7 +33,7 @@ Lifespan is owned by FastMCP; the GUI piggybacks on it.
            │                        │
            ▼                        ▼
    ┌───────────────────────────────────────────┐
-   │              tools/*  (52 tools)          │
+   │              tools/*  (55 tools)          │
    │  Each tool: _impl()  ← business logic     │
    │             register() ← wraps with       │
    │                          observability    │
@@ -134,9 +134,9 @@ HTMX, which keeps things crawlable and simple.
 
 ## Testing
 
-- 286 unit tests, all using either `respx` (HTTP mocking) or `FakePool` /
+- 411 unit tests, all using either `respx` (HTTP mocking) or `FakePool` /
   `FakeClient` (in-memory mocks of the client surface). No tests touch a
   real Couchbase cluster.
-- The 51 tool impls are tested at the `_impl()` level — no FastMCP machinery
+- The 52 tool impls are tested at the `_impl()` level — no FastMCP machinery
   in the test path.
 - The GUI is tested via FastAPI's `TestClient` against the same mocked pool.

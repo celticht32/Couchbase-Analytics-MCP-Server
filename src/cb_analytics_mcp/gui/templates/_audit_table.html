@@ -1,0 +1,38 @@
+{# Copyright (c) 2026 Chris Ahrendt — MIT License #}
+{# Partial: audit log table. Used both by /admin (full page) and /admin/audit-fragment (HTMX). #}
+<table class="min-w-full divide-y divide-slate-200">
+  <thead class="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+    <tr>
+      <th class="px-3 py-2">Time (UTC)</th>
+      <th class="px-3 py-2">Tool</th>
+      <th class="px-3 py-2">Client</th>
+      <th class="px-3 py-2">Duration</th>
+      <th class="px-3 py-2">Args</th>
+      <th class="px-3 py-2">Status</th>
+    </tr>
+  </thead>
+  <tbody class="divide-y divide-slate-100 text-sm">
+    {% for rec in audit_records %}
+      <tr>
+        <td class="px-3 py-2 font-mono text-xs text-slate-600">{{ rec.timestamp }}</td>
+        <td class="px-3 py-2 font-medium text-slate-900">{{ rec.tool }}</td>
+        <td class="px-3 py-2 text-xs text-slate-600">{{ rec.client_id or "—" }}</td>
+        <td class="px-3 py-2 text-xs text-slate-600">{{ rec.duration_ms }}ms</td>
+        <td class="px-3 py-2 font-mono text-xs text-slate-700">
+          {% if rec.args %}{{ rec.args | tojson }}{% else %}—{% endif %}
+        </td>
+        <td class="px-3 py-2">
+          {% if rec.success %}
+            <span class="text-green-600">✓ ok</span>
+          {% else %}
+            <span class="text-red-600">✗ {{ rec.error }}</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="px-3 py-6 text-center text-sm text-slate-500">
+        No audit records match the current filter.
+      </td></tr>
+    {% endfor %}
+  </tbody>
+</table>

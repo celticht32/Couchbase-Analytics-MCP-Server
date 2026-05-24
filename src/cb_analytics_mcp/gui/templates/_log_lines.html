@@ -1,0 +1,35 @@
+{# Copyright (c) 2026 Chris Ahrendt — MIT License #}
+{% if note %}
+  <div class="rounded-lg bg-amber-50 p-4 ring-1 ring-amber-200 text-sm text-amber-800">
+    {{ note }}
+  </div>
+{% else %}
+  <div class="overflow-hidden rounded-lg bg-slate-900 ring-1 ring-slate-700">
+    <div class="border-b border-slate-700 px-4 py-2 text-xs text-slate-400 flex items-center justify-between">
+      <span>{{ records | length }} recent lines</span>
+      <span class="font-mono">pid {{ pid }}</span>
+    </div>
+    <div class="max-h-[32rem] overflow-auto font-mono text-xs">
+      {% for rec in records %}
+        <div class="px-3 py-1 border-b border-slate-800/40 hover:bg-slate-800/40">
+          <span class="text-slate-500">{{ rec.timestamp }}</span>
+          {% set lvl = rec.level | default('info') %}
+          {% if lvl == 'error' or lvl == 'critical' %}
+            <span class="ml-2 rounded bg-red-900/40 px-1.5 py-0.5 text-red-200">{{ lvl }}</span>
+          {% elif lvl == 'warning' %}
+            <span class="ml-2 rounded bg-amber-900/40 px-1.5 py-0.5 text-amber-200">{{ lvl }}</span>
+          {% else %}
+            <span class="ml-2 rounded bg-slate-700/60 px-1.5 py-0.5 text-slate-300">{{ lvl }}</span>
+          {% endif %}
+          <span class="ml-2 text-slate-100">{{ rec.event }}</span>
+          {% set keys = rec.keys() | list %}
+          {% for k in keys if k not in ['timestamp', 'level', 'event'] %}
+            <span class="ml-2 text-slate-400">{{ k }}=<span class="text-slate-200">{{ rec[k] }}</span></span>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="px-4 py-6 text-center text-sm text-slate-500">No log lines yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}

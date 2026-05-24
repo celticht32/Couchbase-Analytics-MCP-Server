@@ -53,6 +53,39 @@ cb-analytics-mcp --check
 
 A clean run prints `config_valid` and exits 0.
 
+## Calling tools from the command line
+
+There's a CLI for invoking individual MCP tools without going through Claude.
+Useful for smoke-testing config, scripting, and debugging.
+
+```bash
+# List all registered tools
+cb-analytics-mcp tools list
+
+# Filter by rate-limit category
+cb-analytics-mcp tools list --category write
+
+# Call a tool in offline mode (instantiates the client pool in-process)
+cb-analytics-mcp tools call list_dataverses --offline
+
+# Call with arguments — JSON-parses values when possible, falls back to string
+cb-analytics-mcp tools call execute_query_readonly \
+    --arg statement='SELECT * FROM Default.Books LIMIT 5' \
+    --arg cluster=prod \
+    --offline
+
+# Call against a running server
+cb-analytics-mcp tools call list_users \
+    --remote http://localhost:8000/mcp
+# (reads MCP_API_KEY from the environment for the bearer token)
+```
+
+Offline mode runs the same `_impl()` function the MCP server would call,
+using your env config to build a real client pool. Remote mode sends an
+MCP JSON-RPC `tools/call` request to a running server. Both pretty-print
+the response to stdout and exit non-zero on tool-level errors so the CLI
+works in shell pipelines.
+
 ## Generating screenshots
 
 The docs include screenshots regenerated locally by:

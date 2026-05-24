@@ -49,6 +49,23 @@ The audit log uses the same redactor; even if a caller passes a secret as a
 tool argument it never lands on disk in plain form.
 
 The dashboard and `/admin` GUI views read the tail of this file directly.
+`/admin` supports filtering by date range, tool name, and "failures only" —
+the filter form updates the table in place via HTMX.
+
+### Rotation
+
+The audit log uses Python's `RotatingFileHandler` so the file doesn't grow
+without bound:
+
+- Rotates when the active file exceeds `AUDIT_ROTATE_BYTES` (default 10 MB).
+- Keeps `AUDIT_ROTATE_KEEP` generations (default 5): the oldest record is in
+  `audit.log.5`, the newest in `audit.log`.
+- Set `AUDIT_ROTATE_BYTES=0` to disable rotation entirely (fall back to a
+  plain unrotated FileHandler — useful when logrotate or another external
+  rotator is in charge).
+
+Rotation is in-process and does not require an external tool. Records mid-
+write are not split across files; the handler rotates at line boundaries.
 
 ## 3. Prometheus metrics
 

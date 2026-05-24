@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block content %}
+  <div class="space-y-8">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">Admin</h1>
+      <p class="mt-1 text-sm text-slate-600">Audit log, configuration, observability.</p>
+    </div>
+
+    <section>
+      <h2 class="text-lg font-semibold text-slate-900">Configuration</h2>
+      <p class="mt-1 text-xs text-slate-500">Loaded at startup; secrets redacted.</p>
+      <pre class="mt-3 max-h-96 overflow-auto rounded bg-slate-900 p-3 font-mono text-xs text-slate-100"><code>{{ config_summary }}</code></pre>
+    </section>
+
+    <section>
+      <div class="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">Audit log</h2>
+          <p class="mt-1 text-xs text-slate-500">
+            {% if audit_enabled %}
+              Reading from <span class="font-mono">{{ audit_file }}</span>. Limit 200 newest matches.
+            {% else %}
+              Audit log disabled.
+            {% endif %}
+          </p>
+        </div>
+
+        {# Filter form. HTMX-driven: the form GETs /admin/audit-fragment and
+           swaps the result into #audit-table. The original-page submit still
+           works for users without JS (the action attribute and method=get). #}
+        <form action="/admin"
+              method="get"
+              class="flex items-end gap-2 flex-wrap"
+              hx-get="/admin/audit-fragment"
+              hx-target="#audit-table"
+              hx-swap="innerHTML"
+              hx-trigger="change from:select, change from:input[type=checkbox], change from:input[type=date], submit">
+          <div>
+            <label class="block text-xs font-medium uppercase text-slate-500">From</label>
+            <input type="date" name="from_date" value="{{ current_from_date }}"
+                   class="mt-1 rounded border border-slate-300 px-2 py-1 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium uppercase text-slate-500">To</label>
+            <input type="date" name="to_date" value="{{ current_to_date }}"
+                   class="mt-1 rounded border border-slate-300 px-2 py-1 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium uppercase text-slate-500">Tool</label>
+            <select name="tool" class="mt-1 rounded border border-slate-300 px-2 py-1 text-sm">
+              <option value="">(all)</option>
+              {% for t in tool_names %}
+                <option value="{{ t }}" {% if t == current_tool_filter %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <label class="flex items-center gap-1 text-xs text-slate-600 pb-2">
+            <input type="checkbox" name="failures_only" value="true" {% if current_failures_only %}checked{% endif %}>
+            failures only
+          </label>
+          <button type="submit"
+                  class="rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">
+            Filter
+          </button>
+        </form>
+      </div>
+
+      <div id="audit-table" class="mt-3 overflow-hidden rounded-lg ring-1 ring-slate-200 bg-white">
+        {% include "_audit_table.html" %}
+      </div>
+    </section>
+  </div>
+{% endblock %}

@@ -99,9 +99,44 @@ Every tool invocation produces one audit-log record with timestamp, tool
 name, client id, duration, success/failure, and redacted args. To meet
 SOC2 / HIPAA-style requirements you should:
 
-- Rotate the audit file (logrotate or container log driver).
-- Ship audit lines to an immutable store (S3 with object-lock, etc).
+- Rotation is built in (see `AUDIT_ROTATE_BYTES` / `AUDIT_ROTATE_KEEP` in
+  `docs/configuration.md`). The defaults — 10 MB per file, 5 generations
+  kept — give you ~50 MB of in-flight audit before the oldest record falls
+  off the back. For longer retention, ship rotated files to immutable
+  storage (S3 with object-lock, an SIEM sink, etc).
 - Disable `AUDIT_LOG_ENABLED=false` in dev only.
+
+## Rate limiting
+
+Every tool invocation is subject to a token-bucket rate limit, applied per
+API key per category:
+
+| category | tools | default |
+|---|---|---|
+| query | `execute_query*`, `explain_query`, `infer_schema` | 10 / sec |
+| read | every other read-only tool (list/get/ping/...) | 60 / sec |
+| write | every mutating tool (upsert/delete user, links, restart, capella mutations, …) | 1 / sec |
+
+The defaults are intentional: writes are the most dangerous operations, so
+they're throttled hard. Reads are cheap enough to allow a burst. Queries
+sit in the middle.
+
+When a bucket is empty, the tool call returns a structured error with
+`error: "RateLimitExceeded"`, `retry_after_sec`, `category`, and
+`rate_per_sec` — Claude is told to back off, and the request is also
+recorded in the audit log with `success: false` so you can spot abusive
+clients.
+
+These limits **are the recommended defaults** for typical deployments. If
+your workload genuinely needs more throughput, raise them in env vars
+(`RATE_LIMIT_QUERY_PER_SEC` etc.) — but consider whether the right answer
+might be a circuit breaker further upstream instead. Setting any limit to
+`0` disables that bucket.
+
+The current implementation is in-process. If you scale this server out
+horizontally you'll need a shared store (Redis) to make the bucket counts
+coherent across replicas; that's not in v1.x but it's noted in the
+README's "Future possibilities" section.
 
 ## Reporting issues
 

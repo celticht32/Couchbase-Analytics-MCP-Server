@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Query{% endblock %}
+{% block content %}
+  <div class="space-y-6">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">SQL++ query editor</h1>
+      <p class="mt-1 text-sm text-slate-600">Execute Analytics queries against any configured cluster.</p>
+    </div>
+
+    <form hx-post="/query/run"
+          hx-target="#query-result"
+          hx-indicator="#query-spinner"
+          class="space-y-3 rounded-lg bg-white p-4 ring-1 ring-slate-200">
+      <textarea name="statement" rows="10" required
+                placeholder="SELECT * FROM Default.MyDataset LIMIT 10"
+                class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div>
+          <label class="block text-xs font-medium uppercase text-slate-500">Cluster</label>
+          <select name="cluster"
+                  class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+            {% for c in clusters %}
+              <option value="{{ c }}" {% if c == default_cluster %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium uppercase text-slate-500">Scan consistency</label>
+          <select name="scan_consistency" class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+            <option value="not_bounded">not_bounded</option>
+            <option value="request_plus">request_plus</option>
+            <option value="at_plus">at_plus</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium uppercase text-slate-500">Timeout</label>
+          <input type="text" name="timeout" value="120s"
+                 class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button type="submit"
+                class="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+          Run query
+        </button>
+        <span id="query-spinner" class="htmx-indicator text-sm text-slate-500">
+          Running…
+        </span>
+      </div>
+    </form>
+
+    <div id="query-result"></div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+  .htmx-request .htmx-indicator { opacity: 1; }
+</style>
+{% endblock %}

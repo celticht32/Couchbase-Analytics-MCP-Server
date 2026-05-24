@@ -21,7 +21,7 @@ the full power of every tool the server exposes.
 4. Auth: paste your `MCP_API_KEY`.
 5. Save and toggle the connector on for a new conversation.
 
-You should see the 52 tools listed when you click the connector's name in
+You should see the 55 tools listed when you click the connector's name in
 the conversation. Ask Claude *"Use cb-analytics-mcp to list the dataverses
 in my production cluster"* to confirm.
 

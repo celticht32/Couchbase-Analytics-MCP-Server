@@ -1,0 +1,208 @@
+/* Copyright (c) 2026 Chris Ahrendt — MIT License */
+
+/* ── Local helpers (always applied) ──────────────────────────────────────── */
+
+/* Nav link styling — Tailwind doesn't ship a built-in for this */
+.nav-link {
+    color: rgb(203, 213, 225);     /* slate-300 */
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+.nav-link:hover {
+    color: white;
+}
+
+pre code {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 200ms ease-in;
+}
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+/* ── Offline fallback (only matters when CDN is unreachable) ─────────────── */
+
+/* The base.html file loads Tailwind via CDN. The rules below mirror the
+ * subset of Tailwind utility classes the templates use, so the GUI is
+ * still legible when offline (in CI, in Docker without egress, or when
+ * generating screenshots in a sandbox). When Tailwind is loaded, its rules
+ * take precedence because they appear later in the cascade as inline styles. */
+
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: rgb(30, 41, 59); background: rgb(248, 250, 252); }
+
+/* Layout */
+nav { background: rgb(15, 23, 42); color: rgb(241, 245, 249); padding: 0 1rem; }
+nav .mx-auto { max-width: 80rem; margin: 0 auto; }
+nav .flex { display: flex; align-items: center; justify-content: space-between; height: 3.5rem; gap: 1.5rem; }
+nav a { color: rgb(241, 245, 249); text-decoration: none; margin-right: 1rem; font-size: 0.875rem; }
+nav a:hover { color: white; }
+nav button { background: none; border: none; color: rgb(203, 213, 225); cursor: pointer; font-size: 0.75rem; }
+
+main { max-width: 80rem; margin: 0 auto; padding: 2rem 1rem; }
+
+/* Cards */
+.rounded-lg, .rounded { border-radius: 0.5rem; }
+.bg-white { background: white; }
+.bg-slate-50 { background: rgb(248, 250, 252); }
+.bg-slate-900 { background: rgb(15, 23, 42); color: rgb(241, 245, 249); }
+.bg-red-50 { background: rgb(254, 242, 242); }
+.bg-amber-50 { background: rgb(255, 251, 235); }
+.bg-green-50 { background: rgb(240, 253, 244); }
+.ring-1 { box-shadow: 0 0 0 1px rgb(226, 232, 240); }
+.ring-slate-200 { box-shadow: 0 0 0 1px rgb(226, 232, 240); }
+.ring-slate-700 { box-shadow: 0 0 0 1px rgb(51, 65, 85); }
+.ring-red-200 { box-shadow: 0 0 0 1px rgb(254, 202, 202); }
+.ring-amber-200 { box-shadow: 0 0 0 1px rgb(253, 230, 138); }
+.ring-green-200 { box-shadow: 0 0 0 1px rgb(187, 247, 208); }
+
+/* Padding/margin */
+.p-3 { padding: 0.75rem; }
+.p-4 { padding: 1rem; }
+.p-6 { padding: 1.5rem; }
+.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+.py-12 { padding-top: 3rem; padding-bottom: 3rem; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 0.75rem; }
+.mt-8 { margin-top: 2rem; }
+.mb-8 { margin-bottom: 2rem; }
+.ml-2 { margin-left: 0.5rem; }
+
+/* Spacing utilities */
+.space-y-3 > * + * { margin-top: 0.75rem; }
+.space-y-4 > * + * { margin-top: 1rem; }
+.space-y-6 > * + * { margin-top: 1.5rem; }
+.space-y-8 > * + * { margin-top: 2rem; }
+
+/* Typography */
+.text-xs { font-size: 0.75rem; line-height: 1rem; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+.font-sans { font-family: ui-sans-serif, system-ui, sans-serif; }
+.tracking-wide { letter-spacing: 0.025em; }
+.uppercase { text-transform: uppercase; }
+.text-center { text-align: center; }
+
+/* Colours */
+.text-white { color: white; }
+.text-slate-100 { color: rgb(241, 245, 249); }
+.text-slate-300 { color: rgb(203, 213, 225); }
+.text-slate-500 { color: rgb(100, 116, 139); }
+.text-slate-600 { color: rgb(71, 85, 105); }
+.text-slate-700 { color: rgb(51, 65, 85); }
+.text-slate-800 { color: rgb(30, 41, 59); }
+.text-slate-900 { color: rgb(15, 23, 42); }
+.text-green-600 { color: rgb(22, 163, 74); }
+.text-green-700 { color: rgb(21, 128, 61); }
+.text-red-600 { color: rgb(220, 38, 38); }
+.text-red-700 { color: rgb(185, 28, 28); }
+.text-red-800 { color: rgb(153, 27, 27); }
+.text-amber-700 { color: rgb(180, 83, 9); }
+.text-amber-800 { color: rgb(146, 64, 14); }
+
+/* Flex / grid */
+.flex { display: flex; }
+.items-center { align-items: center; }
+.items-end { align-items: flex-end; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-x-4 { column-gap: 1rem; }
+.gap-x-6 { column-gap: 1.5rem; }
+.grid { display: grid; }
+.grid-cols-1 { grid-template-columns: 1fr; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+
+@media (min-width: 640px) {
+  .sm\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .sm\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .sm\:grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .sm\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+}
+@media (min-width: 1024px) {
+  .lg\:grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .lg\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+}
+
+/* Forms */
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: inherit;
+}
+input[type=text], input[type=password], select, textarea {
+  border: 1px solid rgb(203, 213, 225);
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: rgb(59, 130, 246);
+  box-shadow: 0 0 0 1px rgb(59, 130, 246);
+}
+button[type=submit], .rounded.bg-slate-900 {
+  background: rgb(15, 23, 42);
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+button[type=submit]:hover { background: rgb(30, 41, 59); }
+
+/* Tables */
+table { border-collapse: collapse; width: 100%; }
+thead { background: rgb(248, 250, 252); }
+th, td { text-align: left; padding: 0.5rem 1rem; font-size: 0.875rem; }
+thead th { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; color: rgb(100, 116, 139); letter-spacing: 0.025em; }
+tbody tr { border-top: 1px solid rgb(241, 245, 249); }
+
+/* Width helpers */
+.w-full { width: 100%; }
+.max-w-md { max-width: 28rem; }
+.max-w-7xl { max-width: 80rem; }
+.min-w-full { min-width: 100%; }
+.min-h-full { min-height: 100%; }
+.max-h-96 { max-height: 24rem; }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* Misc */
+.h-full { height: 100%; }
+.h-14 { height: 3.5rem; }
+.h-1\.5 { height: 0.375rem; }
+.w-1\.5 { width: 0.375rem; }
+.overflow-auto { overflow: auto; }
+.overflow-hidden { overflow: hidden; }
+.shadow { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
+.inline-flex { display: inline-flex; }
+.divide-y > * + * { border-top: 1px solid rgb(226, 232, 240); }
+.divide-slate-100 > * + * { border-top-color: rgb(241, 245, 249); }
+.divide-slate-200 > * + * { border-top-color: rgb(226, 232, 240); }
+.antialiased { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+.rounded-full { border-radius: 9999px; }
+.bg-green-500 { background: rgb(34, 197, 94); }
+.bg-red-500 { background: rgb(239, 68, 68); }
+pre.bg-slate-900 code { color: rgb(241, 245, 249); }

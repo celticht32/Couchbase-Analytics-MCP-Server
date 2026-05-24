@@ -73,6 +73,37 @@ When this variable is set the single-cluster env vars above are **ignored**.
 | `METRICS_ENABLED` | `true` | Expose Prometheus metrics. |
 | `METRICS_PORT` | `9100` | Where the metrics endpoint listens. |
 
+## Limits
+
+Safety limits with defaults tuned for typical single-operator deployments.
+Tune them if your traffic shape or dataset size demands it.
+
+| variable | default | description |
+|---|---|---|
+| `MAX_QUERY_ROWS` | `1000` | Soft cap on `execute_query` / `execute_query_readonly`. Responses include `truncated: true` and `full_row_count` when the cap kicks in. `0` disables the cap entirely. Use `execute_query_paginated` for the full result. |
+| `RATE_LIMIT_QUERY_PER_SEC` | `10` | Token-bucket rate for `execute_query*`, `explain_query`, `infer_schema`. Per API key. |
+| `RATE_LIMIT_READ_PER_SEC` | `60` | Token-bucket rate for read-only tools (list, get, ping, who_am_i, …). Per API key. |
+| `RATE_LIMIT_WRITE_PER_SEC` | `1` | Token-bucket rate for mutating tools (upsert/delete user, links, cluster restarts, capella mutations, …). Per API key. Intentionally conservative — fingers-crossed-no-runaway. |
+| `AUDIT_ROTATE_BYTES` | `10485760` (10 MB) | Rotate the audit log when it exceeds this size. `0` falls back to a plain unrotated FileHandler. |
+| `AUDIT_ROTATE_KEEP` | `5` | How many rotated generations to keep (`audit.log.1` … `audit.log.N`). |
+
+When a tool call hits a rate limit, the response is:
+
+```json
+{
+  "ok": false,
+  "error": "RateLimitExceeded",
+  "message": "Rate limit exceeded for category 'write' (limit 1/sec). Retry in 0.83s.",
+  "category": "write",
+  "rate_per_sec": 1,
+  "retry_after_sec": 0.83
+}
+```
+
+Claude is told about these fields in tool descriptions and will back off
+automatically. If you're calling tools directly (e.g. via the `tools call`
+CLI), respect `retry_after_sec`.
+
 ## Validating
 
 Use `cb-analytics-mcp --check` to validate the active configuration without

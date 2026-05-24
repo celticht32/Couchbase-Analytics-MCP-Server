@@ -1,6 +1,6 @@
 # Tool reference
 
-All 52 MCP tools, organised by group. Each tool's signature is given as it
+All 55 MCP tools, organised by group. Each tool's signature is given as it
 appears to Claude. Most tools accept an optional `cluster` parameter; if you
 omit it the default (first-configured) cluster is used.
 
@@ -15,6 +15,17 @@ or, on failure:
 ```json
 { "ok": false, "error": "AnalyticsAuthError", "message": "HTTP 401: ..." }
 ```
+
+Rate-limit failures use a structured error including `retry_after_sec` so
+clients can back off:
+
+```json
+{ "ok": false, "error": "RateLimitExceeded",
+  "message": "Rate limit exceeded for category 'write' (limit 1/sec). Retry in 0.82s.",
+  "category": "write", "rate_per_sec": 1, "retry_after_sec": 0.82 }
+```
+
+See `docs/security.md` for the rate-limit categories and defaults.
 
 ## Meta — 2 tools
 
@@ -43,17 +54,51 @@ Sample `sample_size` documents and report observed top-level fields with
 presence counts and value types. Dataset names are whitelisted by a strict
 regex before interpolation to prevent SQL++ injection.
 
-## Query — 2 tools
+## Query — 5 tools
 
 ### `execute_query(statement, named_args=None, positional_args=None, scan_consistency=None, timeout="120s", cluster=None)`
 
 Run any SQL++ statement, including DDL and DML. `scan_consistency` may be
 `not_bounded`, `request_plus`, or `at_plus`.
 
+Responses include `truncated: true` and `full_row_count` when more rows
+were available than the `MAX_QUERY_ROWS` cap (default 1000). Use
+`execute_query_paginated` to walk the full result.
+
 ### `execute_query_readonly(statement, scan_consistency=None, timeout="120s", cluster=None)`
 
 Run a read-only SELECT. The service can apply extra optimisations and the
-client adds `readonly=true` to the payload.
+client adds `readonly=true` to the payload. Results are cached for ~60 seconds
+keyed by `(cluster, statement, scan_consistency)`; the response includes a
+`cached` boolean so Claude can see whether a query hit the cache.
+
+### `execute_query_paginated(statement, page_size=100, named_args=None, positional_args=None, scan_consistency=None, timeout="120s", cluster=None)`
+
+Run a SELECT and return the first page (default 100 rows) plus a pagination
+handle. Use `fetch_next_page(handle)` to retrieve subsequent pages. The handle
+expires after 30 minutes of inactivity. Prefer this for any SELECT that might
+return more than a few thousand rows — sending the full result through the
+MCP boundary is expensive and the LLM rarely benefits from seeing more than
+the first few hundred. Pagination is implemented as server-side LIMIT/OFFSET
+rewriting; a trailing LIMIT/OFFSET on your statement will be stripped so the
+pagination is applied cleanly.
+
+Response includes `pagination_handle`, `page_size`, `page_offset`,
+`rows_returned`, and `has_more`.
+
+### `fetch_next_page(pagination_handle)`
+
+Fetch the next page of a previously paginated query. Returns rows plus a new
+`has_more` flag and updated `page_offset` / `total_seen` counts. When
+`has_more` is `false` the handle is automatically dropped.
+
+### `explain_query(statement, cluster=None)`
+
+Return the Couchbase Analytics query plan (EXPLAIN output) for a SQL++
+statement. Use this to investigate slow queries: the plan shows scan/filter/
+join order and confirms whether an index is being used. Either pass a plain
+SELECT (Claude will prepend `EXPLAIN`) or a statement already starting with
+`EXPLAIN`.
 
 ## Admin — 7 tools
 
