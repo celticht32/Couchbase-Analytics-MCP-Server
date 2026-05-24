@@ -174,7 +174,7 @@ pluggy==1.6.0
     #   pytest-cov
 prometheus-client==0.25.0
     # via cb-analytics-mcp (pyproject.toml)
-protobuf==6.33.6
+protobuf==7.35.0
     # via
     #   googleapis-common-protos
     #   opentelemetry-proto
