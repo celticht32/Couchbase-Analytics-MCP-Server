@@ -28,12 +28,10 @@ import pytest
 
 from cb_analytics.client import AnalyticsClient
 from cb_analytics.config import AnalyticsClientConfig
-from cb_analytics.exceptions import AnalyticsError, AnalyticsQueryError
+from cb_analytics.exceptions import AnalyticsQueryError
 from cb_analytics.models import (
     AnalyticsQueryRequest,
-    AnalyticsSettings,
     ScanConsistency,
-    ServiceConfig,
 )
 
 # Skip all integration tests if no host is configured

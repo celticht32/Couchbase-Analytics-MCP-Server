@@ -41,7 +41,7 @@ def cluster_api(config: AnalyticsClientConfig) -> ClusterAPI:
         management_url=MGMT_BASE,
         analytics_url="http://localhost:8095",
         username=config.username,
-        password=config.password,
+        password=config.password.get_secret_value(),
         timeout=10.0,
         verify_ssl=False,
         max_retries=1,
@@ -412,3 +412,35 @@ async def test_404_raises_not_found(cluster_api: ClusterAPI) -> None:
     )
     with pytest.raises(AnalyticsNotFoundError):
         await cluster_api.get_statistic("nonexistent")
+
+
+# ── Regression tests for v1.1.0 bug fixes ─────────────────────────────────────
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_hard_failover_allows_unsafe_false_preserved(cluster_api: ClusterAPI) -> None:
+    """BUG FIX: allowUnsafe=False must NOT be stripped from the request body."""
+    from cb_analytics.models import FailoverRequest
+    route = respx.post(f"{MGMT_BASE}/controller/failOver").mock(
+        return_value=make_response({})
+    )
+    await cluster_api.hard_failover(FailoverRequest(otpNode="ns_1@node1", allowUnsafe=False))
+    import urllib.parse
+    body = dict(urllib.parse.parse_qsl(route.calls[0].request.content.decode()))
+    assert "allowUnsafe" in body, "allowUnsafe key should be present"
+    assert body["allowUnsafe"] == "false", "allowUnsafe=False must not be stripped"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_configure_alerts_enabled_false_preserved(cluster_api: ClusterAPI) -> None:
+    """BUG FIX: AlertSettings.enabled=False must NOT be stripped."""
+    from cb_analytics.models import AlertSettings
+    route = respx.post(f"{MGMT_BASE}/settings/alerts").mock(
+        return_value=make_response({})
+    )
+    await cluster_api.configure_alerts(AlertSettings(enabled=False))
+    import json
+    body = json.loads(route.calls[0].request.content)
+    assert "enabled" in body, "enabled key should be present"
+    assert body["enabled"] is False, "enabled=False must not be stripped"

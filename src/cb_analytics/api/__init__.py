@@ -1,12 +1,11 @@
 # Copyright (c) 2026 Chris Ahrendt
 # SPDX-License-Identifier: MIT
-# See LICENSE file in the project root for full license information.
-
 """API module — one class per documented API group."""
 
 from cb_analytics.api.analytics import (
     AnalyticsAdminAPI,
     AnalyticsConfigAPI,
+    AnalyticsLibraryAPI,
     AnalyticsLinksAPI,
     AnalyticsServiceAPI,
     AnalyticsSettingsAPI,
@@ -22,6 +21,7 @@ __all__ = [
     "AnalyticsConfigAPI",
     "AnalyticsSettingsAPI",
     "AnalyticsLinksAPI",
+    "AnalyticsLibraryAPI",
     "SecurityAPI",
     "ServerGroupsAPI",
 ]

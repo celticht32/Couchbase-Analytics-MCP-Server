@@ -152,15 +152,15 @@ function imageRow(filename, label, widthPct = 1.0) {
   
   // Get native dimensions from filename pattern
   const dims = {
-    "diag-01-system-architecture.png": [2000, 1520],
-    "diag-02-request-lifecycle.png":   [1600, 1500],
-    "diag-03-api-groups.png":           [2200, 2120],
-    "diag-04-exception-hierarchy.png":  [1400, 1120],
-    "diag-05-configuration-flow.png":   [1800, 1300],
+    "diag-01-system-architecture.png": [2120, 1420],
+    "diag-02-request-lifecycle.png":   [1640, 1520],
+    "diag-03-api-groups.png":           [2200, 2700],
+    "diag-04-exception-hierarchy.png":  [1560, 1180],
+    "diag-05-configuration-flow.png":   [1920, 1390],
     "ss-01-connection.png":             [1500, 870],
     "ss-02-query.png":                  [1500, 942],
-    "ss-03-monitor.png":                [1500, 867],
-    "ss-04-rbac.png":                   [2000, 996],
+    "ss-03-monitor.png":                [1500, 705],
+    "ss-04-rbac.png":                   [1500, 747],
     "ss-05-links.png":                  [1500, 540],
     "ss-06-cluster.png":                [1500, 696],
     "ss-07-cli.png":                    [1500, 990],
@@ -290,7 +290,7 @@ function coverSection() {
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "MIT License  ·  Version 1.0.0  ·  May 2026", font: "Arial", size: 22, color: GRAY_MID })]
+      children: [new TextRun({ text: "MIT License  ·  Version 1.1.0  ·  May 2026", font: "Arial", size: 22, color: GRAY_MID })]
     }),
     pageBreak(),
   ];
@@ -319,7 +319,7 @@ function executiveSummary() {
     body("cb-analytics is a complete, production-ready Python implementation of the Couchbase Enterprise Analytics REST API. It provides a typed SDK, command-line interface, and an interactive Terminal UI, giving developers and operators full programmatic access to every documented Analytics endpoint."),
     spacer(120),
     callout("Key Facts",
-      "142 unit tests · 8 API group classes · 60+ Pydantic v2 models · MIT License · Python 3.11+",
+      "154 unit tests · 9 API group classes · 60+ Pydantic v2 models · SecretStr credentials · Circuit breaker · Capella client · MIT License · Python 3.11+",
       DARK_BLUE, LIGHT_BLUE),
     spacer(120),
     h2("1.1 What Is Covered"),
@@ -332,6 +332,11 @@ function executiveSummary() {
     bullet("Security and RBAC: users, groups, roles, LDAP, SAML, saslauthd, password policy, audit, TLS certificates, system secrets"),
     bullet("Server Group Awareness: create, rename, update membership, delete groups"),
     bullet("Statistics, logging, events, and diagnostics"),
+    bullet("UDF library management (AnalyticsLibraryAPI): list, upload (local-origin only), delete"),
+    bullet("Server-Sent Events stream (stream_events()) for real-time system event monitoring"),
+    bullet("Capella Analytics Management API (CapellaAnalyticsClient): clusters, backups, API keys"),
+    bullet("Prometheus metrics (MetricsRegistry): requests_total, request_duration, errors_total, circuit_state"),
+    bullet("Structured logging via structlog with secret scrubbing — passwords never appear in log output"),
     spacer(160),
     h2("1.2 Technology Stack"),
     dataTable(
@@ -362,7 +367,7 @@ function architectureSection() {
     ...imageRow("diag-01-system-architecture.png", "Figure 1 – System Architecture Overview", 1.0),
 
     h2("2.2 Request Lifecycle"),
-    body("Every API call follows the same lifecycle: the caller passes a Pydantic model to an API group class, which builds the request payload and delegates to HttpClient. HttpClient handles authentication, routing to the correct base URL (management port 8091 or analytics port 8095), retry logic, and response parsing. Any errors in the response body are surfaced as typed exceptions."),
+    body("Every API call follows the same lifecycle: the caller passes a Pydantic model to an API group class, which builds the request payload and delegates to HttpClient. HttpClient passes the call through the async circuit breaker (_AsyncCircuitBreaker — no Tornado dependency), applies an asyncio.timeout outer guard, then uses tenacity for exponential-backoff retry on transient errors. Authentication, routing to the correct base URL (port 8091 or 8095), and structured error parsing are all handled transparently. Errors in the response body are surfaced as typed exceptions."),
     spacer(80),
     ...imageRow("diag-02-request-lifecycle.png", "Figure 2 – Request Lifecycle (9-step annotated flow)", 0.9),
 
@@ -444,8 +449,8 @@ function implementationGuide() {
     code('pip install "cb-analytics[dev]"'),
     code(""),
     code("# From source"),
-    code("git clone https://github.com/cahrendt/cb-analytics.git"),
-    code("cd cb-analytics"),
+    code("git clone https://github.com/celticht32/Couchbase-Analytics-MCP-Server.git"),
+    code("cd Couchbase-Analytics-MCP-Server"),
     code('pip install -e ".[dev]"'),
     spacer(120),
     body("The following packages are installed automatically as dependencies:"),
@@ -483,6 +488,9 @@ function implementationGuide() {
         ["CB_ANALYTICS_VERIFY_SSL",       "true",         "Verify TLS certificates (false for self-signed)"],
         ["CB_ANALYTICS_TIMEOUT_SECONDS",  "60.0",         "Per-request timeout in seconds"],
         ["CB_ANALYTICS_MAX_RETRIES",      "3",            "Retry attempts for transient errors"],
+        ["CB_ANALYTICS_DEBUG",             "false",        "Log request method+path — never logs passwords"],
+        ["CB_ANALYTICS_CIRCUIT_FAIL_MAX",  "5",            "Consecutive failures before circuit breaker opens"],
+        ["CB_ANALYTICS_CIRCUIT_RESET_TIMEOUT","30",        "Seconds before open circuit allows one probe request"],
       ],
       [3800, 1680, 4600]
     ),
@@ -730,6 +738,8 @@ function implementationGuide() {
         ["test_security_api.py",              "28", "RBAC, certs, LDAP, SAML, audit, secrets"],
         ["test_server_groups_and_models.py",  "22", "ServerGroups, Pydantic models, exceptions, config"],
         ["test_http_client_and_edge_cases.py","31", "HTTP status mapping, retry, auth, content types"],
+        ["test_capella_client.py",            "11", "Capella Analytics Management API client"],
+        ["test_observability.py",              "5",  "Prometheus MetricsRegistry"],
         ["test_integration.py",               "24", "Live cluster end-to-end (auto-skip)"],
       ],
       [4200, 1000, 4880]
@@ -818,6 +828,20 @@ function apiReferenceSection() {
       [2500, 800, 3200, 3580]
     ),
 
+    h2("5.1b Analytics Library API (client.libraries) — NEW in v1.1.0"),
+    dataTable(
+      ["Method", "HTTP", "Endpoint", "Description"],
+      [
+        ["list_libraries()",                    "GET",    "/analytics/library",              "List all UDF libraries"],
+        ["upload_library(scope, name, type, data)", "PUT", "/analytics/library/{scope}/{lib}", "Upload .pyz/.jar (local-origin only — raises AnalyticsLibraryError if remote)"],
+        ["delete_library(scope, name)",         "DELETE", "/analytics/library/{scope}/{lib}", "Delete a UDF library"],
+      ],
+      [2500, 900, 3200, 3480]
+    ),
+    spacer(80),
+    callout("Important", "Library upload (PUT) requires the request to originate locally from an Analytics node. Remote calls return 403 and raise AnalyticsLibraryError with a clear explanation. GET and DELETE work remotely.", "C0392B", "FAE5E5"),
+    spacer(120),
+
     h2("5.2 Analytics Admin API (client.admin)"),
     dataTable(
       ["Method", "HTTP", "Endpoint", "Description"],
@@ -888,6 +912,10 @@ function apiReferenceSection() {
         ["configure_auto_failover(cfg)",   "POST", "/settings/autoFailover",           "Auto-failover config"],
         ["get_statistic(metric)",          "GET",  "/pools/default/stats/range/{m}",   "Single metric"],
         ["start_log_collection(req)",      "POST", "/controller/startLogsCollection",  "Collect logs"],
+        ["stream_events(max, timeout)",     "GET",  "/eventsStreaming",                  "Async SSE generator — yields SystemEvent objects"],
+        ["get_rebalance_settings()",        "GET",  "/settings/rebalance",              "vBucket move limit (NEW)"],
+        ["configure_rebalance_settings(d)","POST",  "/settings/rebalance",              "Set vBucket move limit (NEW)"],
+        ["get_cluster_connections()",       "GET",  "/pools/default/settings/memcached/global", "Connection settings (NEW)"],
       ],
       [2700, 900, 3400, 3080]
     ),

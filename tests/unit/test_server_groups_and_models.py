@@ -42,7 +42,7 @@ def sg_api(config: AnalyticsClientConfig) -> ServerGroupsAPI:
         management_url=MGMT_BASE,
         analytics_url="http://localhost:8095",
         username=config.username,
-        password=config.password,
+        password=config.password.get_secret_value(),
         timeout=10.0,
         verify_ssl=False,
         max_retries=1,

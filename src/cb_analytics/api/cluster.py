@@ -1,28 +1,23 @@
 # Copyright (c) 2026 Chris Ahrendt
 # SPDX-License-Identifier: MIT
-# See LICENSE file in the project root for full license information.
-
 """
 Cluster & Nodes API implementation.
 
-Covers all endpoints documented at:
-  https://docs.couchbase.com/enterprise-analytics/current/reference/rest-cluster-intro.html
-
-Sections implemented:
-  - Cluster Initialization and Provisioning
-  - Node Addition and Removal
-  - Rebalance
-  - Manual Failover
-  - Auto-Failover
-  - Settings and Connections
-  - Status and Events
-  - Statistics
-  - Logging
+Bug fixes vs v1.0:
+  - Credential models use to_api_dict() — SecretStr unwrapped at boundary
+  - eventsStreaming endpoint added as async generator
+  - GET/POST /settings/rebalance added
+  - GET /pools/default/settings/memcached/global added
+  - model_dump replaced with to_api_dict() to preserve 0/False
 """
 
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+import json
+from typing import Any, AsyncGenerator
+
+import structlog
 
 from cb_analytics.http_client import HttpClient
 from cb_analytics.models import (
@@ -54,97 +49,66 @@ from cb_analytics.models import (
     SystemEvent,
 )
 
+log = structlog.get_logger(__name__)
+
 
 class ClusterAPI:
-    """
-    REST API for Couchbase cluster and node management.
-
-    All methods are async and return Pydantic models where a defined
-    schema exists, or raw dicts/lists for highly variable responses.
-    """
+    """REST API for Couchbase cluster and node management."""
 
     def __init__(self, http: HttpClient) -> None:
         self._http = http
 
-    # ── Cluster Initialization and Provisioning ───────────────────────────────
+    # ── Initialization ────────────────────────────────────────────────────────
 
     async def initialize_cluster(self, request: ClusterInitRequest) -> ClusterInitResponse:
-        """
-        POST /clusterInit
-
-        Initialize and provision a new single-node cluster in one call.
-        Combines node initialization, credential setup, service assignment,
-        memory configuration, and cluster naming.
-        """
-        data = {k: v for k, v in request.model_dump(by_alias=True).items() if v is not None}
-        raw = await self._http.mgmt_post("/clusterInit", data=data)
-        return ClusterInitResponse.model_validate(raw)
+        """POST /clusterInit."""
+        raw = await self._http.mgmt_post("/clusterInit", data=request.to_api_dict())
+        return ClusterInitResponse.model_validate(raw) if raw is not None else ClusterInitResponse(newBaseUri="")
 
     async def initialize_node(self, request: NodeInitRequest) -> None:
-        """
-        POST /nodes/self/controller/settings
-
-        Set data and analytics storage paths for a node.
-        """
+        """POST /nodes/self/controller/settings."""
         data = {k: v for k, v in request.model_dump(by_alias=True).items() if v is not None}
         await self._http.mgmt_post("/nodes/self/controller/settings", data=data)
 
     async def establish_credentials(self, request: CredentialsRequest) -> None:
-        """
-        POST /settings/web
-
-        Set the administrator username and password for the cluster.
-        """
-        await self._http.mgmt_post(
-            "/settings/web",
-            data=request.model_dump(),
-        )
+        """POST /settings/web."""
+        await self._http.mgmt_post("/settings/web", data=request.to_api_dict())
 
     async def rename_node(self, request: RenameNodeRequest) -> None:
-        """POST /node/controller/rename — set the node hostname."""
+        """POST /node/controller/rename."""
         await self._http.mgmt_post("/node/controller/rename", data=request.model_dump())
 
     async def configure_memory(self, request: MemoryConfigRequest) -> None:
-        """
-        POST /pools/default
-
-        Configure memory quotas and/or cluster name.
-        """
-        data = {k: v for k, v in request.model_dump(by_alias=True).items() if v is not None}
+        """POST /pools/default — memory quotas / cluster name."""
+        data = {k: v for k, v in request.model_dump(by_alias=True, exclude_unset=True).items() if v is not None}
         await self._http.mgmt_post("/pools/default", data=data)
 
     async def setup_services(self, request: SetupServicesRequest) -> None:
-        """POST /node/controller/setupServices — assign services to a node."""
-        await self._http.mgmt_post(
-            "/node/controller/setupServices",
-            data=request.model_dump(),
-        )
+        """POST /node/controller/setupServices."""
+        await self._http.mgmt_post("/node/controller/setupServices", data=request.model_dump())
 
-    # ── Node Addition and Removal ─────────────────────────────────────────────
+    # ── Node Addition / Removal ───────────────────────────────────────────────
 
     async def add_node(self, request: AddNodeRequest) -> dict[str, Any]:
-        """POST /controller/addNode — add a node to the cluster."""
-        raw = await self._http.mgmt_post(
-            "/controller/addNode",
-            data=request.model_dump(),
-        )
+        """POST /controller/addNode."""
+        raw = await self._http.mgmt_post("/controller/addNode", data=request.to_api_dict())
         return raw or {}
 
     async def join_cluster(self, cluster_ip: str, username: str, password: str) -> None:
-        """POST /node/controller/doJoinCluster — join this node to an existing cluster."""
+        """POST /node/controller/doJoinCluster."""
         await self._http.mgmt_post(
             "/node/controller/doJoinCluster",
             data={"clusterMemberHostIp": cluster_ip, "user": username, "password": password},
         )
 
     async def eject_node(self, request: EjectNodeRequest) -> None:
-        """POST /controller/ejectNode — remove a node from the cluster."""
+        """POST /controller/ejectNode."""
         await self._http.mgmt_post("/controller/ejectNode", data=request.model_dump())
 
     # ── Rebalance ─────────────────────────────────────────────────────────────
 
     async def rebalance(self, request: RebalanceRequest) -> None:
-        """POST /controller/rebalance — start a rebalance operation."""
+        """POST /controller/rebalance."""
         data = {k: v for k, v in request.model_dump(by_alias=True).items() if v is not None}
         await self._http.mgmt_post("/controller/rebalance", data=data)
 
@@ -159,8 +123,8 @@ class ClusterAPI:
         return RebalanceRetryConfig.model_validate(raw)
 
     async def configure_rebalance_retry(self, config: RebalanceRetryConfig) -> None:
-        """POST /pools/default/retryRebalance — configure automatic retry on failure."""
-        data = {k: v for k, v in config.model_dump().items() if v is not None}
+        """POST /pools/default/retryRebalance."""
+        data = {k: v for k, v in config.model_dump(exclude_unset=True).items()}
         await self._http.mgmt_post("/pools/default/retryRebalance", data=data)
 
     async def get_pending_retry_rebalance(self) -> dict[str, Any]:
@@ -171,19 +135,24 @@ class ClusterAPI:
         """POST /controller/cancelRebalanceRetry/{rebalance_id}."""
         await self._http.mgmt_post(f"/controller/cancelRebalanceRetry/{rebalance_id}")
 
-    # ── Manual Failover ───────────────────────────────────────────────────────
+    async def get_rebalance_settings(self) -> dict[str, Any]:
+        """GET /settings/rebalance — concurrent vBucket move limit."""
+        return await self._http.mgmt_get("/settings/rebalance") or {}
+
+    async def configure_rebalance_settings(self, settings: dict[str, Any]) -> None:
+        """POST /settings/rebalance — set concurrent vBucket move limit."""
+        await self._http.mgmt_post("/settings/rebalance", json=settings)
+
+    # ── Failover ──────────────────────────────────────────────────────────────
 
     async def hard_failover(self, request: FailoverRequest) -> None:
-        """POST /controller/failOver — perform a hard failover."""
-        data = {k: v for k, v in request.model_dump().items() if v is not None}
+        """POST /controller/failOver."""
+        data = request.model_dump(exclude_none=True)
         await self._http.mgmt_post("/controller/failOver", data=data)
 
     async def graceful_failover(self, otp_node: str) -> None:
         """POST /controller/startGracefulFailover."""
-        await self._http.mgmt_post(
-            "/controller/startGracefulFailover",
-            data={"otpNode": otp_node},
-        )
+        await self._http.mgmt_post("/controller/startGracefulFailover", data={"otpNode": otp_node})
 
     async def set_recovery_type(self, request: RecoveryTypeRequest) -> None:
         """POST /controller/setRecoveryType."""
@@ -197,12 +166,12 @@ class ClusterAPI:
         return AutoFailoverSettings.model_validate(raw)
 
     async def configure_auto_failover(self, settings: AutoFailoverSettings) -> None:
-        """POST /settings/autoFailover — enable/configure auto-failover."""
-        data = {k: v for k, v in settings.model_dump().items() if v is not None}
+        """POST /settings/autoFailover — preserves False/0 values correctly."""
+        data = {k: v for k, v in settings.model_dump(exclude_unset=True).items()}
         await self._http.mgmt_post("/settings/autoFailover", data=data)
 
     async def reset_auto_failover(self) -> None:
-        """POST /settings/autoFailover/resetCount — reset the auto-failover counter."""
+        """POST /settings/autoFailover/resetCount."""
         await self._http.mgmt_post("/settings/autoFailover/resetCount")
 
     # ── Settings and Connections ──────────────────────────────────────────────
@@ -215,24 +184,18 @@ class ClusterAPI:
         """POST /internalSettings."""
         await self._http.mgmt_post("/internalSettings", data=settings)
 
-    async def get_max_parallel_indexers(self) -> dict[str, Any]:
-        """GET /settings/maxParallelIndexers."""
-        return await self._http.mgmt_get("/settings/maxParallelIndexers") or {}
+    async def get_cluster_connections(self) -> dict[str, Any]:
+        """GET /pools/default/settings/memcached/global — cluster connection settings."""
+        return await self._http.mgmt_get("/pools/default/settings/memcached/global") or {}
 
-    async def set_max_parallel_indexers(self, global_value: int) -> None:
-        """POST /settings/maxParallelIndexers."""
-        await self._http.mgmt_post(
-            "/settings/maxParallelIndexers",
-            data={"globalValue": str(global_value)},
-        )
+    async def configure_cluster_connections(self, settings: dict[str, Any]) -> None:
+        """POST /pools/default/settings/memcached/global."""
+        await self._http.mgmt_post("/pools/default/settings/memcached/global", json=settings)
 
     async def setup_alternate_address(self, config: AlternateAddressConfig) -> None:
         """PUT /node/controller/setupAlternateAddresses/external."""
         data = {k: v for k, v in config.model_dump().items() if v is not None}
-        await self._http.mgmt_put(
-            "/node/controller/setupAlternateAddresses/external",
-            data=data,
-        )
+        await self._http.mgmt_put("/node/controller/setupAlternateAddresses/external", data=data)
 
     async def delete_alternate_address(self) -> None:
         """DELETE /node/controller/setupAlternateAddresses/external."""
@@ -244,8 +207,8 @@ class ClusterAPI:
         return AlertSettings.model_validate(raw)
 
     async def configure_alerts(self, settings: AlertSettings) -> None:
-        """POST /settings/alerts — configure email alert notifications."""
-        data = {k: v for k, v in settings.model_dump().items() if v is not None}
+        """POST /settings/alerts."""
+        data = settings.model_dump(exclude_none=True)
         await self._http.mgmt_post("/settings/alerts", json=data)
 
     async def send_test_email(self) -> None:
@@ -255,18 +218,10 @@ class ClusterAPI:
     # ── Status and Events ─────────────────────────────────────────────────────
 
     async def get_cluster_tasks(self) -> list[ClusterTask]:
-        """GET /pools/default/tasks — list currently running tasks."""
+        """GET /pools/default/tasks."""
         raw = await self._http.mgmt_get("/pools/default/tasks")
-        if isinstance(raw, list):
-            return [ClusterTask.model_validate(t) for t in raw]
-        return []
-
-    async def get_rebalance_report(self, report_id: str) -> dict[str, Any]:
-        """GET /logs/rebalanceReport?reportID={report_id}."""
-        return await self._http.mgmt_get(
-            "/logs/rebalanceReport",
-            params={"reportID": report_id},
-        ) or {}
+        results = raw if isinstance(raw, list) else []
+        return [ClusterTask.model_validate(t) for t in results]
 
     async def get_cluster_info(self) -> ClusterInfo:
         """GET /pools — top-level cluster info."""
@@ -274,25 +229,75 @@ class ClusterAPI:
         return ClusterInfo.model_validate(raw)
 
     async def get_cluster_details(self) -> PoolsDefault:
-        """GET /pools/default — detailed cluster view."""
+        """GET /pools/default."""
         raw = await self._http.mgmt_get("/pools/default")
         return PoolsDefault.model_validate(raw)
 
     async def get_system_events(self, since_time: str | None = None) -> list[SystemEvent]:
-        """GET /events — return system events."""
+        """GET /events — system events snapshot."""
         params: dict[str, Any] = {}
         if since_time:
             params["since"] = since_time
-        raw = await self._http.mgmt_get("/events", params=params)
-        events = raw if isinstance(raw, list) else raw.get("events", []) if isinstance(raw, dict) else []
+        raw = await self._http.mgmt_get("/events", params=params if params else None)
+        if isinstance(raw, list):
+            events = raw
+        elif isinstance(raw, dict):
+            events = raw.get("events", [])
+        else:
+            events = []
         return [SystemEvent.model_validate(e) for e in events]
 
-    async def get_orchestrator_info(self) -> dict[str, Any]:
-        """GET /pools/default/terseClusterInfo — identify the orchestrator node."""
-        return await self._http.mgmt_get("/pools/default/terseClusterInfo") or {}
+    async def stream_events(
+        self,
+        max_events: int | None = None,
+        timeout_seconds: float = 300.0,
+    ) -> AsyncGenerator[SystemEvent, None]:
+        """
+        GET /eventsStreaming — Server-Sent Events stream.
+
+        Yields parsed SystemEvent objects as they arrive from the server.
+        The stream continues until the connection closes, max_events is
+        reached, or timeout_seconds elapses.
+
+        Args:
+            max_events:      Stop after yielding this many events. None = unlimited.
+            timeout_seconds: Total stream lifetime in seconds (default 5 min).
+
+        Example::
+
+            async for event in client.cluster.stream_events(max_events=100):
+                print(event.description)
+        """
+        client = self._http._mgmt_client
+        count = 0
+
+        async def _generate() -> AsyncGenerator[SystemEvent, None]:
+            nonlocal count
+            async with client.stream("GET", "/eventsStreaming") as response:
+                async for line in response.aiter_lines():
+                    if not line.strip():
+                        continue
+                    if line.startswith("data:"):
+                        data_str = line[5:].strip()
+                        if data_str:
+                            try:
+                                raw = json.loads(data_str)
+                                yield SystemEvent.model_validate(raw)
+                                count += 1
+                                if max_events is not None and count >= max_events:
+                                    return
+                            except Exception:
+                                log.debug("stream_events_parse_error", line=line[:200])
+
+        try:
+            async with asyncio.timeout(timeout_seconds):
+                async for event in _generate():
+                    yield event
+        except asyncio.TimeoutError:
+            log.debug("stream_events_timeout", timeout_seconds=timeout_seconds, events_yielded=count)
 
     async def get_node_info(self) -> NodeInfo:
-        """GET /pools/nodes — information about all nodes."""
+        """GET /pools/nodes."""
         raw = await self._http.mgmt_get("/pools/nodes")
         return NodeInfo.model_validate(raw)
 
@@ -300,6 +305,14 @@ class ClusterAPI:
         """GET /pools/default/nodeServices."""
         raw = await self._http.mgmt_get("/pools/default/nodeServices")
         return NodeServices.model_validate(raw)
+
+    async def get_orchestrator_info(self) -> dict[str, Any]:
+        """GET /pools/default/terseClusterInfo."""
+        return await self._http.mgmt_get("/pools/default/terseClusterInfo") or {}
+
+    async def who_am_i(self) -> dict[str, Any]:
+        """GET /whoami — authenticated user info."""
+        return await self._http.mgmt_get("/whoami") or {}
 
     # ── Statistics ────────────────────────────────────────────────────────────
 
@@ -312,13 +325,10 @@ class ClusterAPI:
         step: int | None = None,
         nodes: list[str] | None = None,
     ) -> StatsSingleResponse:
-        """
-        GET /pools/default/stats/range/{metric_name}[/{function_expression}]
-        """
+        """GET /pools/default/stats/range/{metric_name}[/{function_expression}]."""
         path = f"/pools/default/stats/range/{metric_name}"
         if function_expression:
             path += f"/{function_expression}"
-
         params: dict[str, Any] = {}
         if start is not None:
             params["startTimestamp"] = start
@@ -328,12 +338,11 @@ class ClusterAPI:
             params["step"] = step
         if nodes:
             params["nodes"] = ",".join(nodes)
-
-        raw = await self._http.mgmt_get(path, params=params)
+        raw = await self._http.mgmt_get(path, params=params if params else None)
         return StatsSingleResponse.model_validate(raw)
 
     async def get_multiple_statistics(self, request: StatsMultipleRequest) -> list[StatsSingleResponse]:
-        """POST /pools/default/stats/range — get multiple metrics at once."""
+        """POST /pools/default/stats/range."""
         raw = await self._http.mgmt_post(
             "/pools/default/stats/range",
             json=request.model_dump(exclude_none=True),
@@ -353,7 +362,7 @@ class ClusterAPI:
         await self._http.mgmt_post("/controller/cancelLogsCollection")
 
     async def get_diagnostics(self) -> str:
-        """GET /diag — retrieve diagnostic and log information as text."""
+        """GET /diag."""
         raw = await self._http.mgmt_get("/diag")
         return str(raw)
 
@@ -363,9 +372,5 @@ class ClusterAPI:
         return await self._http.mgmt_get(path)
 
     async def log_client_error(self, message: str) -> None:
-        """POST /logClientError — log a client-side error on the server."""
+        """POST /logClientError."""
         await self._http.mgmt_post("/logClientError", data={"msg": message})
-
-    async def who_am_i(self) -> dict[str, Any]:
-        """GET /whoami — return info about the authenticated user."""
-        return await self._http.mgmt_get("/whoami") or {}

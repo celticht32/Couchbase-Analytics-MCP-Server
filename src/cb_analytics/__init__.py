@@ -1,20 +1,19 @@
 # Copyright (c) 2026 Chris Ahrendt
 # SPDX-License-Identifier: MIT
-# See LICENSE file in the project root for full license information.
-
 """
-cb_analytics — Python SDK for Couchbase Enterprise Analytics REST API.
+cb_analytics — Python SDK, CLI, and TUI for Couchbase Enterprise Analytics
+and Capella Analytics REST APIs.
 
-Covers all documented API groups:
-  - Cluster & Nodes (initialization, rebalance, failover, settings)
-  - Analytics Service (query execution, admin, config, settings)
-  - Analytics Links (create, read, update, delete)
-  - Security & RBAC (users, groups, roles, certificates, LDAP, SAML)
-  - Server Groups
-  - Statistics & Logging
+Copyright (c) 2026 Chris Ahrendt. MIT License.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
+__author__ = "Chris Ahrendt"
+__license__ = "MIT"
+
 __all__ = ["AnalyticsClient", "AnalyticsClientConfig"]
 
-from cb_analytics.client import AnalyticsClient, AnalyticsClientConfig
+from cb_analytics.client import AnalyticsClient
+from cb_analytics.config import AnalyticsClientConfig
+
+# Create a py.typed marker (inline)

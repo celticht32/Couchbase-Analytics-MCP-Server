@@ -1,21 +1,12 @@
 # Copyright (c) 2026 Chris Ahrendt
 # SPDX-License-Identifier: MIT
-# See LICENSE file in the project root for full license information.
-
 """
 Pydantic v2 models for all Couchbase Enterprise Analytics REST API
 request bodies and response shapes.
 
-Grouped to match the official documentation sections:
-  - Cluster & Node models
-  - Analytics Service models
-  - Analytics Admin models
-  - Analytics Config models
-  - Analytics Settings models
-  - Analytics Links models
-  - RBAC / Security models
-  - Server Group models
-  - Statistics models
+Security note: credentials (passwords, secret keys) use SecretStr so
+they never appear in repr(), logs, or serialized output. Call
+.get_secret_value() only at the HTTP serialization boundary.
 """
 
 from __future__ import annotations
@@ -23,39 +14,33 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, SecretStr, model_validator
 
 
 # ---------------------------------------------------------------------------
 # Enumerations
 # ---------------------------------------------------------------------------
 
-
 class AddressFamily(str, Enum):
     IPV4 = "ipv4"
     IPV6 = "ipv6"
-
 
 class NodeEncryption(str, Enum):
     ON = "on"
     OFF = "off"
 
-
 class IndexerStorageMode(str, Enum):
     PLASMA = "plasma"
     MAGMA = "magma"
-
 
 class RecoveryType(str, Enum):
     DELTA = "delta"
     FULL = "full"
 
-
 class ScanConsistency(str, Enum):
     NOT_BOUNDED = "not_bounded"
     REQUEST_PLUS = "request_plus"
     AT_PLUS = "at_plus"
-
 
 class LinkType(str, Enum):
     COUCHBASE = "couchbase"
@@ -63,12 +48,10 @@ class LinkType(str, Enum):
     AZURE_BLOB = "azureblob"
     GCS = "gcs"
 
-
 class EncryptionLevel(str, Enum):
     NONE = "none"
     HALF = "half"
     FULL = "full"
-
 
 class RbacDomain(str, Enum):
     LOCAL = "local"
@@ -79,139 +62,107 @@ class RbacDomain(str, Enum):
 # Cluster / Node models
 # ---------------------------------------------------------------------------
 
-
 class ClusterInitRequest(BaseModel):
     """POST /clusterInit — initialize and provision a new cluster."""
-
     hostname: str | None = None
     username: str
-    password: str
+    password: SecretStr
     data_path: str | None = Field(None, alias="dataPath")
     analytics_path: str | None = Field(None, alias="analyticsPath")
     java_home: str | None = Field(None, alias="javaHome")
     send_stats: bool = Field(True, alias="sendStats")
     cluster_name: str | None = Field(None, alias="clusterName")
-    services: str  # comma-separated e.g. "kv,cbas"
+    services: str
     memory_quota: int | None = Field(None, alias="memoryQuota")
     cbas_memory_quota: int | None = Field(None, alias="cbasMemoryQuota")
     afamily: AddressFamily = AddressFamily.IPV4
     afamily_only: bool = Field(False, alias="afamilyOnly")
     node_encryption: NodeEncryption = Field(NodeEncryption.OFF, alias="nodeEncryption")
-    indexer_storage_mode: IndexerStorageMode = Field(
-        IndexerStorageMode.PLASMA, alias="indexerStorageMode"
-    )
+    indexer_storage_mode: IndexerStorageMode = Field(IndexerStorageMode.PLASMA, alias="indexerStorageMode")
     port: str = "SAME"
     allowed_hosts: str | None = Field(None, alias="allowedHosts")
-
     model_config = {"populate_by_name": True}
 
+    def to_api_dict(self) -> dict[str, Any]:
+        """Serialize for HTTP, unwrapping SecretStr values."""
+        d = {k: v for k, v in self.model_dump(by_alias=True).items() if v is not None}
+        if self.password:
+            d["password"] = self.password.get_secret_value()
+        return d
 
 class ClusterInitResponse(BaseModel):
     new_base_uri: str = Field(alias="newBaseUri")
     model_config = {"populate_by_name": True}
 
-
 class NodeInitRequest(BaseModel):
-    """POST /nodes/self/controller/settings — initialize node paths."""
-
     path: str
     index_path: str | None = Field(None, alias="indexPath")
     cbas_path: str | None = Field(None, alias="cbasPath")
     model_config = {"populate_by_name": True}
 
-
 class CredentialsRequest(BaseModel):
-    """POST /settings/web — establish admin credentials."""
-
     username: str
-    password: str
+    password: SecretStr
     port: str = "SAME"
 
+    def to_api_dict(self) -> dict[str, Any]:
+        return {"username": self.username, "password": self.password.get_secret_value(), "port": self.port}
 
 class RenameNodeRequest(BaseModel):
-    """POST /node/controller/rename."""
-
     hostname: str
 
-
 class MemoryConfigRequest(BaseModel):
-    """POST /pools/default — configure memory quotas."""
-
     memory_quota: int | None = Field(None, alias="memoryQuota")
     cbas_memory_quota: int | None = Field(None, alias="cbasMemoryQuota")
     cluster_name: str | None = Field(None, alias="clusterName")
     model_config = {"populate_by_name": True}
 
-
 class SetupServicesRequest(BaseModel):
-    """POST /node/controller/setupServices."""
-
-    services: str  # comma-separated: "kv,cbas"
-
-
-class AddNodeRequest(BaseModel):
-    """POST /controller/addNode."""
-
-    hostname: str
-    user: str
-    password: str
     services: str
 
+class AddNodeRequest(BaseModel):
+    hostname: str
+    user: str
+    password: SecretStr
+    services: str
+
+    def to_api_dict(self) -> dict[str, Any]:
+        return {"hostname": self.hostname, "user": self.user,
+                "password": self.password.get_secret_value(), "services": self.services}
 
 class EjectNodeRequest(BaseModel):
-    """POST /controller/ejectNode."""
-
     otpNode: str
 
-
 class RebalanceRequest(BaseModel):
-    """POST /controller/rebalance."""
-
     known_nodes: str = Field(alias="knownNodes")
     ejected_nodes: str | None = Field(None, alias="ejectedNodes")
     model_config = {"populate_by_name": True}
 
-
 class RebalanceRetryConfig(BaseModel):
-    """GET/POST /pools/default/retryRebalance."""
-
     enabled: bool | None = None
     afterTimePeriod: int | None = None
     maxAttempts: int | None = None
-
 
 class RebalanceProgress(BaseModel):
     status: str
     rawProgress: dict[str, Any] | None = None
 
-
 class FailoverRequest(BaseModel):
-    """POST /controller/failOver."""
-
     otpNode: str
     allowUnsafe: bool | None = None
 
-
 class AutoFailoverSettings(BaseModel):
-    """GET/POST /settings/autoFailover."""
-
     enabled: bool | None = None
     timeout: int | None = None
     maxCount: int | None = None
     failoverOnDataDiskIssues: dict[str, Any] | None = None
     failoverServerGroup: bool | None = None
 
-
 class RecoveryTypeRequest(BaseModel):
-    """POST /controller/setRecoveryType."""
-
     otpNode: str
     recoveryType: RecoveryType
 
-
 class AlertSettings(BaseModel):
-    """GET/POST /settings/alerts."""
-
     enabled: bool | None = None
     emailServer: dict[str, Any] | None = None
     recipients: list[str] | None = None
@@ -219,48 +170,31 @@ class AlertSettings(BaseModel):
     alerts: list[str] | None = None
     pop: dict[str, Any] | None = None
 
-
 class ClusterInfo(BaseModel):
-    """Response for GET /pools."""
-
     pools: list[dict[str, Any]] = Field(default_factory=list)
     isAdminCreds: bool | None = None
     uuid: str | None = None
     implementationVersion: str | None = None
     componentsVersion: dict[str, str] | None = None
 
-
 class PoolsDefault(BaseModel):
-    """Response for GET /pools/default."""
-
     name: str | None = None
     nodes: list[dict[str, Any]] = Field(default_factory=list)
-    buckets: dict[str, Any] | None = None
     rebalanceStatus: str | None = None
-    rebalanceProgressUri: str | None = None
-    stopRebalanceUri: str | None = None
     balanced: bool | None = None
     clusterName: str | None = None
     memoryQuota: int | None = None
     cbasMemoryQuota: int | None = None
     model_config = {"extra": "allow"}
 
-
 class NodeInfo(BaseModel):
-    """Response for GET /pools/nodes."""
-
     nodes: list[dict[str, Any]] = Field(default_factory=list)
     model_config = {"extra": "allow"}
 
-
 class NodeServices(BaseModel):
-    """Response for GET /pools/default/nodeServices."""
-
     rev: int | None = None
     nodesExt: list[dict[str, Any]] = Field(default_factory=list)
     clusterCapabilities: dict[str, Any] | None = None
-    clusterCapabilitiesVer: list[int] | None = None
-
 
 class SystemEvent(BaseModel):
     timestamp: str | None = None
@@ -271,7 +205,6 @@ class SystemEvent(BaseModel):
     uuid: str | None = None
     model_config = {"extra": "allow"}
 
-
 class ClusterTask(BaseModel):
     type: str | None = None
     status: str | None = None
@@ -279,10 +212,7 @@ class ClusterTask(BaseModel):
     recommendedRefreshPeriod: float | None = None
     model_config = {"extra": "allow"}
 
-
 class LogCollectionRequest(BaseModel):
-    """POST /controller/startLogsCollection."""
-
     nodes: str = "*"
     logRedactionLevel: str | None = None
     logRedactionSalt: str | None = None
@@ -290,19 +220,13 @@ class LogCollectionRequest(BaseModel):
     customer: str | None = None
     ticket: str | None = None
 
-
 class StatsSingleResponse(BaseModel):
-    """GET /pools/default/stats/range/{metric}."""
-
     data: list[dict[str, Any]] = Field(default_factory=list)
     errors: list[dict[str, Any]] | None = None
     startTimestamp: int | None = None
     endTimestamp: int | None = None
 
-
 class StatsMultipleRequest(BaseModel):
-    """POST /pools/default/stats/range — request multiple metrics."""
-
     specs: list[dict[str, Any]] = Field(default_factory=list)
     start: int | None = None
     end: int | None = None
@@ -312,25 +236,21 @@ class StatsMultipleRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Analytics Service models — /api/v1/request
+# Analytics query models
 # ---------------------------------------------------------------------------
 
-
 class AnalyticsQueryRequest(BaseModel):
-    """POST /api/v1/request — execute a SQL++ statement."""
-
+    """POST/GET /api/v1/request — execute a SQL++ statement."""
     statement: str
     args: list[Any] | None = None
-    named_args: dict[str, Any] | None = Field(None, alias="$parameters")
-    client_context_id: str | None = Field(None, alias="client_context_id")
-    timeout: str | None = None  # ISO 8601 e.g. "30s"
+    named_args: dict[str, Any] | None = None
+    client_context_id: str | None = None
+    timeout: str | None = None
     scan_consistency: ScanConsistency | None = None
     read_only: bool | None = None
     pretty: bool | None = None
     max_result_size: int | None = None
-
     model_config = {"populate_by_name": True}
-
 
 class AnalyticsMetrics(BaseModel):
     elapsedTime: str | None = None
@@ -343,11 +263,9 @@ class AnalyticsMetrics(BaseModel):
     errorCount: int | None = None
     processedObjects: int | None = None
 
-
 class AnalyticsWarning(BaseModel):
     code: int
     msg: str
-
 
 class AnalyticsError(BaseModel):
     code: int
@@ -356,10 +274,7 @@ class AnalyticsError(BaseModel):
     line: int | None = None
     column: int | None = None
 
-
 class AnalyticsQueryResponse(BaseModel):
-    """Response from POST/GET /api/v1/request."""
-
     requestID: str | None = None
     clientContextID: str | None = None
     signature: dict[str, Any] | None = None
@@ -372,9 +287,8 @@ class AnalyticsQueryResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Analytics Admin models — /api/v1/active_requests etc.
+# Analytics Admin models
 # ---------------------------------------------------------------------------
-
 
 class ActiveRequest(BaseModel):
     clientContextID: str | None = None
@@ -385,7 +299,6 @@ class ActiveRequest(BaseModel):
     statement: str | None = None
     userAgent: str | None = None
     model_config = {"extra": "allow"}
-
 
 class CompletedRequest(BaseModel):
     clientContextID: str | None = None
@@ -398,38 +311,42 @@ class CompletedRequest(BaseModel):
     resultSize: int | None = None
     model_config = {"extra": "allow"}
 
-
 class ServiceStatus(BaseModel):
-    """GET /api/v1/status/service."""
-
     authorizedNodes: list[str] | None = None
     ccRevLag: int | None = None
     state: str | None = None
     model_config = {"extra": "allow"}
 
-
-class IngestionStatus(BaseModel):
-    """GET /api/v1/status/ingestion."""
-
-    links: list[dict[str, Any]] = Field(default_factory=list)
+class IngestionLinkState(BaseModel):
+    """Per-link state within the ingestion status response."""
+    name: str | None = None
+    state: str | None = None
+    datasetStates: list[dict[str, Any]] = Field(default_factory=list)
+    pendingOperations: int | None = None
     model_config = {"extra": "allow"}
 
+class IngestionStatus(BaseModel):
+    """GET /api/v1/status/ingestion — richer shape matching actual API response."""
+    links: list[IngestionLinkState] = Field(default_factory=list)
+    model_config = {"extra": "allow"}
 
-class CancelRequestParams(BaseModel):
-    """DELETE /api/v1/active_requests — cancel by clientContextID."""
-
-    client_context_id: str = Field(alias="client_context_id")
-    model_config = {"populate_by_name": True}
+    @classmethod
+    def from_raw(cls, raw: Any) -> "IngestionStatus":
+        """Parse the raw response which may be a list or dict."""
+        if isinstance(raw, list):
+            return cls(links=[IngestionLinkState.model_validate(l) for l in raw])
+        if isinstance(raw, dict):
+            links_raw = raw.get("links", [])
+            return cls(links=[IngestionLinkState.model_validate(l) for l in links_raw])
+        return cls()
 
 
 # ---------------------------------------------------------------------------
-# Analytics Config models — /api/v1/config/service & /api/v1/config/node
+# Analytics Config models
 # ---------------------------------------------------------------------------
-
 
 class ServiceConfig(BaseModel):
-    """GET/PUT /api/v1/config/service."""
-
+    """GET/PUT /api/v1/config/service — only send non-None fields."""
     storageBuffercacheSize: int | None = None
     storageMemorycomponentGlobalbudget: int | None = None
     activeMemoryGlobalBudget: int | None = None
@@ -443,57 +360,77 @@ class ServiceConfig(BaseModel):
     compilerParallelism: int | None = None
     model_config = {"extra": "allow"}
 
+    def to_api_dict(self) -> dict[str, Any]:
+        """Serialize only explicitly set (non-None) fields."""
+        return {k: v for k, v in self.model_dump(exclude_unset=True).items() if v is not None}
 
 class NodeConfig(BaseModel):
     """GET/PUT /api/v1/config/node."""
-
     storageBuffercacheSize: int | None = None
     storageMemorycomponentGlobalbudget: int | None = None
     model_config = {"extra": "allow"}
 
-
-# ---------------------------------------------------------------------------
-# Analytics Settings models — /settings/analytics
-# ---------------------------------------------------------------------------
-
+    def to_api_dict(self) -> dict[str, Any]:
+        return {k: v for k, v in self.model_dump(exclude_unset=True).items() if v is not None}
 
 class AnalyticsSettings(BaseModel):
     """GET/POST /settings/analytics."""
-
     numReplicas: int | None = None
     model_config = {"extra": "allow"}
 
+    def to_api_dict(self) -> dict[str, Any]:
+        return {k: v for k, v in self.model_dump(exclude_unset=True).items() if v is not None}
+
 
 # ---------------------------------------------------------------------------
-# Analytics Links models — /api/v1/link/{name}
+# Analytics Links models — credentials use SecretStr
 # ---------------------------------------------------------------------------
-
 
 class CouchbaseLinkConfig(BaseModel):
-    type: Literal[LinkType.COUCHBASE] = LinkType.COUCHBASE
+    type: Literal["couchbase"] = "couchbase"
     hostname: str
     username: str
-    password: str
+    password: SecretStr
     encryption: EncryptionLevel = EncryptionLevel.NONE
     certificate: str | None = None
     clientCertificate: str | None = None
-    clientKey: str | None = None
+    clientKey: SecretStr | None = None
 
+    def to_api_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"type": self.type, "hostname": self.hostname,
+                              "username": self.username, "password": self.password.get_secret_value(),
+                              "encryption": self.encryption.value}
+        if self.certificate:
+            d["certificate"] = self.certificate
+        if self.clientCertificate:
+            d["clientCertificate"] = self.clientCertificate
+        if self.clientKey:
+            d["clientKey"] = self.clientKey.get_secret_value()
+        return d
 
 class S3LinkConfig(BaseModel):
-    type: Literal[LinkType.S3] = LinkType.S3
+    type: Literal["s3"] = "s3"
     region: str
     accessKeyId: str
-    secretAccessKey: str
-    sessionToken: str | None = None
+    secretAccessKey: SecretStr
+    sessionToken: SecretStr | None = None
     serviceEndpoint: str | None = None
 
+    def to_api_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"type": self.type, "region": self.region,
+                              "accessKeyId": self.accessKeyId,
+                              "secretAccessKey": self.secretAccessKey.get_secret_value()}
+        if self.sessionToken:
+            d["sessionToken"] = self.sessionToken.get_secret_value()
+        if self.serviceEndpoint:
+            d["serviceEndpoint"] = self.serviceEndpoint
+        return d
 
 class AzureBlobLinkConfig(BaseModel):
-    type: Literal[LinkType.AZURE_BLOB] = LinkType.AZURE_BLOB
+    type: Literal["azureblob"] = "azureblob"
     accountName: str
-    accountKey: str | None = None
-    sharedAccessSignature: str | None = None
+    accountKey: SecretStr | None = None
+    sharedAccessSignature: SecretStr | None = None
     blobEndpoint: str | None = None
     endpointSuffix: str | None = None
 
@@ -503,29 +440,37 @@ class AzureBlobLinkConfig(BaseModel):
             raise ValueError("Either accountKey or sharedAccessSignature must be provided")
         return self
 
+    def to_api_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"type": self.type, "accountName": self.accountName}
+        if self.accountKey:
+            d["accountKey"] = self.accountKey.get_secret_value()
+        if self.sharedAccessSignature:
+            d["sharedAccessSignature"] = self.sharedAccessSignature.get_secret_value()
+        if self.blobEndpoint:
+            d["blobEndpoint"] = self.blobEndpoint
+        if self.endpointSuffix:
+            d["endpointSuffix"] = self.endpointSuffix
+        return d
 
 class GCSLinkConfig(BaseModel):
-    type: Literal[LinkType.GCS] = LinkType.GCS
-    jsonCredentials: str | None = None
+    type: Literal["gcs"] = "gcs"
+    jsonCredentials: SecretStr | None = None
     applicationDefaultCredentials: str | None = None
     endpoint: str | None = None
 
+    def to_api_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"type": self.type}
+        if self.jsonCredentials:
+            d["jsonCredentials"] = self.jsonCredentials.get_secret_value()
+        if self.applicationDefaultCredentials:
+            d["applicationDefaultCredentials"] = self.applicationDefaultCredentials
+        if self.endpoint:
+            d["endpoint"] = self.endpoint
+        return d
 
 LinkConfig = CouchbaseLinkConfig | S3LinkConfig | AzureBlobLinkConfig | GCSLinkConfig
 
-
-class LinkCreateRequest(BaseModel):
-    """POST /api/v1/link/{name}."""
-
-    dataverse: str
-    name: str
-    config: LinkConfig = Field(discriminator="type")
-    model_config = {"populate_by_name": True}
-
-
 class LinkInfo(BaseModel):
-    """Link details returned by GET /api/v1/link/{name}."""
-
     dataverse: str | None = None
     name: str | None = None
     type: str | None = None
@@ -534,26 +479,45 @@ class LinkInfo(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Analytics Library (UDF) models
+# ---------------------------------------------------------------------------
+
+class LibraryFunction(BaseModel):
+    name: str | None = None
+    arity: int | None = None
+    returnType: str | None = None
+    args: list[str] | None = None
+    model_config = {"extra": "allow"}
+
+class LibraryInfo(BaseModel):
+    scope: str | None = None
+    name: str | None = None
+    hash: str | None = None
+    functions: list[LibraryFunction] = Field(default_factory=list)
+    model_config = {"extra": "allow"}
+
+
+# ---------------------------------------------------------------------------
 # RBAC / Security models
 # ---------------------------------------------------------------------------
 
-
-class RoleDefinition(BaseModel):
-    role: str
-    bucket_name: str | None = Field(None, alias="bucketName")
-    scope_name: str | None = Field(None, alias="scopeName")
-    collection_name: str | None = Field(None, alias="collectionName")
-    model_config = {"populate_by_name": True}
-
-
 class UserUpsertRequest(BaseModel):
-    """PUT/PATCH /settings/rbac/users/{domain}/{username}."""
-
-    password: str | None = None
+    password: SecretStr | None = None
     name: str | None = None
-    roles: str | None = None  # comma-separated role strings
+    roles: str | None = None
     groups: str | None = None
 
+    def to_api_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {}
+        if self.password:
+            d["password"] = self.password.get_secret_value()
+        if self.name:
+            d["name"] = self.name
+        if self.roles:
+            d["roles"] = self.roles
+        if self.groups:
+            d["groups"] = self.groups
+        return d
 
 class UserInfo(BaseModel):
     id: str | None = None
@@ -564,15 +528,11 @@ class UserInfo(BaseModel):
     external_groups: list[str] = Field(default_factory=list)
     model_config = {"extra": "allow"}
 
-
 class GroupUpsertRequest(BaseModel):
-    """PUT /settings/rbac/groups/{groupname}."""
-
     description: str | None = None
     roles: str | None = None
     ldap_group_ref: str | None = Field(None, alias="ldapGroupRef")
     model_config = {"populate_by_name": True}
-
 
 class GroupInfo(BaseModel):
     id: str | None = None
@@ -581,16 +541,10 @@ class GroupInfo(BaseModel):
     ldap_group_ref: str | None = None
     model_config = {"extra": "allow"}
 
-
 class PermissionCheckRequest(BaseModel):
-    """POST /pools/default/checkPermissions."""
-
-    permissions: str  # comma-separated permission strings
-
+    permissions: str
 
 class LdapSettings(BaseModel):
-    """GET/POST /settings/ldap."""
-
     authentication_enabled: bool | None = Field(None, alias="authenticationEnabled")
     authorization_enabled: bool | None = Field(None, alias="authorizationEnabled")
     hosts: list[str] | None = None
@@ -598,7 +552,7 @@ class LdapSettings(BaseModel):
     encryption: str | None = None
     server_cert: str | None = Field(None, alias="serverCert")
     bind_dn: str | None = Field(None, alias="bindDN")
-    bind_pass: str | None = Field(None, alias="bindPass")
+    bind_pass: SecretStr | None = Field(None, alias="bindPass")
     user_dn_mapping: str | None = Field(None, alias="userDNMapping")
     groups_query: str | None = Field(None, alias="groupsQuery")
     max_parallel_connections: int | None = Field(None, alias="maxParallelConnections")
@@ -607,32 +561,27 @@ class LdapSettings(BaseModel):
     request_timeout: int | None = Field(None, alias="requestTimeout")
     model_config = {"populate_by_name": True, "extra": "allow"}
 
+    def to_api_dict(self) -> dict[str, Any]:
+        d = {k: v for k, v in self.model_dump(by_alias=True, exclude_unset=True).items() if v is not None}
+        if self.bind_pass:
+            d["bindPass"] = self.bind_pass.get_secret_value()
+        return d
 
 class SamlSettings(BaseModel):
-    """GET/POST /settings/saml."""
-
     enabled: bool | None = None
     idpMetadata: str | None = None
     idpMetadataURL: str | None = None
-    idpMetadataConnectAddressFamily: str | None = None
-    idpMetadataTLSCAs: str | None = None
     spEntityId: str | None = None
     model_config = {"extra": "allow"}
 
-
 class PasswordPolicy(BaseModel):
-    """GET/POST /settings/passwordPolicy."""
-
     minLength: int | None = None
     enforceUppercase: bool | None = None
     enforceLowercase: bool | None = None
     enforceDigits: bool | None = None
     enforceSpecialChars: bool | None = None
 
-
 class AuditSettings(BaseModel):
-    """GET/POST /settings/audit."""
-
     auditdEnabled: bool | None = None
     rotateInterval: int | None = None
     rotateSize: int | None = None
@@ -641,18 +590,12 @@ class AuditSettings(BaseModel):
     disabledUsers: list[dict[str, Any]] | None = None
     model_config = {"extra": "allow"}
 
-
 class SecuritySettings(BaseModel):
-    """GET/POST /settings/security."""
-
     allowedHosts: list[str] | None = None
     tlsMinVersion: str | None = None
     model_config = {"extra": "allow"}
 
-
 class AlternateAddressConfig(BaseModel):
-    """PUT /node/controller/setupAlternateAddresses/external."""
-
     hostname: str | None = None
     mgmt: int | None = None
     mgmtSSL: int | None = None
@@ -661,7 +604,6 @@ class AlternateAddressConfig(BaseModel):
     cbas: int | None = None
     cbasSSL: int | None = None
 
-
 class TrustedCA(BaseModel):
     id: int | None = None
     subject: str | None = None
@@ -669,7 +611,6 @@ class TrustedCA(BaseModel):
     type: str | None = None
     pem: str | None = None
     model_config = {"extra": "allow"}
-
 
 class NodeCertificate(BaseModel):
     node: str | None = None
@@ -684,7 +625,6 @@ class NodeCertificate(BaseModel):
 # Server Groups models
 # ---------------------------------------------------------------------------
 
-
 class ServerGroupInfo(BaseModel):
     name: str | None = None
     uri: str | None = None
@@ -692,22 +632,16 @@ class ServerGroupInfo(BaseModel):
     nodes: list[dict[str, Any]] = Field(default_factory=list)
     model_config = {"extra": "allow"}
 
-
 class ServerGroupsResponse(BaseModel):
     groups: list[ServerGroupInfo] = Field(default_factory=list)
     uri: str | None = None
     rev: int | None = None
 
-
 class ServerGroupCreateRequest(BaseModel):
     name: str
-
 
 class ServerGroupUpdateRequest(BaseModel):
     name: str
 
-
 class ServerGroupMembershipUpdate(BaseModel):
-    """PUT /pools/default/serverGroups?rev={rev}."""
-
     groups: list[dict[str, Any]] = Field(default_factory=list)

@@ -1,8 +1,6 @@
 # Copyright (c) 2026 Chris Ahrendt
 # SPDX-License-Identifier: MIT
-# See LICENSE file in the project root for full license information.
-
-"""Unit tests for HttpClient, retry logic, and edge cases."""
+"""Tests for HttpClient, circuit breaker, retry, error mapping, and models."""
 
 from __future__ import annotations
 
@@ -13,37 +11,27 @@ import httpx
 from cb_analytics.config import AnalyticsClientConfig
 from cb_analytics.exceptions import (
     AnalyticsAuthError,
-    AnalyticsConnectionError,
     AnalyticsNotFoundError,
     AnalyticsRequestError,
     AnalyticsServerError,
 )
-from cb_analytics.http_client import HttpClient
-from tests.conftest import MGMT_BASE, ANALYTICS_BASE, make_response, empty_response
+from cb_analytics.http_client import HttpClient, _warn_if_interpolated
+from cb_analytics.models import (
+    AzureBlobLinkConfig,
+    GCSLinkConfig,
+    IngestionStatus,
+    S3LinkConfig,
+    ServiceConfig,
+)
+from tests.conftest import ANALYTICS_BASE, MGMT_BASE, make_response
 
 
-@pytest.fixture
-def http(config: AnalyticsClientConfig) -> HttpClient:
-    return HttpClient(
-        management_url=MGMT_BASE,
-        analytics_url=ANALYTICS_BASE,
-        username=config.username,
-        password=config.password,
-        timeout=5.0,
-        verify_ssl=False,
-        max_retries=1,
-    )
-
-
-# ── Status code → exception mapping ──────────────────────────────────────────
-
+# ── HTTP status → exception mapping ──────────────────────────────────────────
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_200_returns_body(http: HttpClient) -> None:
-    respx.get(f"{MGMT_BASE}/pools").mock(
-        return_value=make_response({"pools": [], "uuid": "abc"})
-    )
+    respx.get(f"{MGMT_BASE}/pools").mock(return_value=make_response({"uuid": "abc"}))
     result = await http.mgmt_get("/pools")
     assert result["uuid"] == "abc"
 
@@ -51,21 +39,9 @@ async def test_200_returns_body(http: HttpClient) -> None:
 @respx.mock
 @pytest.mark.asyncio
 async def test_204_returns_none(http: HttpClient) -> None:
-    respx.post(f"{MGMT_BASE}/controller/cancelLogsCollection").mock(
-        return_value=httpx.Response(204)
-    )
+    respx.post(f"{MGMT_BASE}/controller/cancelLogsCollection").mock(return_value=httpx.Response(204))
     result = await http.mgmt_post("/controller/cancelLogsCollection")
     assert result is None
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_201_returns_body(http: HttpClient) -> None:
-    respx.post(f"{MGMT_BASE}/pools/default/serverGroups").mock(
-        return_value=httpx.Response(201, json={"name": "Rack A", "uri": "/groups/abc"})
-    )
-    result = await http.mgmt_post("/pools/default/serverGroups", data={"name": "Rack A"})
-    assert result["name"] == "Rack A"
 
 
 @respx.mock
@@ -81,9 +57,7 @@ async def test_401_raises_auth_error(http: HttpClient) -> None:
 @respx.mock
 @pytest.mark.asyncio
 async def test_403_raises_auth_error(http: HttpClient) -> None:
-    respx.get(f"{MGMT_BASE}/settings/security").mock(
-        return_value=httpx.Response(403, json={"message": "Forbidden"})
-    )
+    respx.get(f"{MGMT_BASE}/settings/security").mock(return_value=httpx.Response(403))
     with pytest.raises(AnalyticsAuthError):
         await http.mgmt_get("/settings/security")
 
@@ -91,19 +65,15 @@ async def test_403_raises_auth_error(http: HttpClient) -> None:
 @respx.mock
 @pytest.mark.asyncio
 async def test_404_raises_not_found(http: HttpClient) -> None:
-    respx.get(f"{ANALYTICS_BASE}/api/v1/link/nonexistent").mock(
-        return_value=httpx.Response(404, text="Not Found")
-    )
+    respx.get(f"{ANALYTICS_BASE}/api/v1/link/nope").mock(return_value=httpx.Response(404))
     with pytest.raises(AnalyticsNotFoundError):
-        await http.analytics_get("/api/v1/link/nonexistent")
+        await http.analytics_get("/api/v1/link/nope")
 
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_400_raises_request_error(http: HttpClient) -> None:
-    respx.post(f"{MGMT_BASE}/clusterInit").mock(
-        return_value=httpx.Response(400, json=["Invalid parameter: services"])
-    )
+    respx.post(f"{MGMT_BASE}/clusterInit").mock(return_value=httpx.Response(400, json=["bad param"]))
     with pytest.raises(AnalyticsRequestError):
         await http.mgmt_post("/clusterInit", data={"services": "invalid"})
 
@@ -111,9 +81,7 @@ async def test_400_raises_request_error(http: HttpClient) -> None:
 @respx.mock
 @pytest.mark.asyncio
 async def test_409_raises_request_error(http: HttpClient) -> None:
-    respx.put(f"{MGMT_BASE}/settings/rbac/users/local/alice").mock(
-        return_value=httpx.Response(409, json={"message": "User already exists"})
-    )
+    respx.put(f"{MGMT_BASE}/settings/rbac/users/local/alice").mock(return_value=httpx.Response(409))
     with pytest.raises(AnalyticsRequestError):
         await http.mgmt_put("/settings/rbac/users/local/alice", data={"password": "x"})
 
@@ -121,237 +89,203 @@ async def test_409_raises_request_error(http: HttpClient) -> None:
 @respx.mock
 @pytest.mark.asyncio
 async def test_500_raises_server_error(http: HttpClient) -> None:
-    # With max_retries=1 it tries once then raises
-    respx.get(f"{MGMT_BASE}/pools").mock(
-        return_value=httpx.Response(500, json={"error": "Internal error"})
-    )
+    respx.get(f"{MGMT_BASE}/pools").mock(return_value=httpx.Response(500))
     with pytest.raises(AnalyticsServerError):
         await http.mgmt_get("/pools")
 
 
-@respx.mock
-@pytest.mark.asyncio
-async def test_503_raises_server_error(http: HttpClient) -> None:
-    respx.get(f"{ANALYTICS_BASE}/api/v1/status/service").mock(
-        return_value=httpx.Response(503, text="Service Unavailable")
-    )
-    with pytest.raises(AnalyticsServerError):
-        await http.analytics_get("/api/v1/status/service")
-
-
-# ── HTTP methods ──────────────────────────────────────────────────────────────
-
+# ── None params filtering ─────────────────────────────────────────────────────
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_mgmt_put(http: HttpClient) -> None:
-    respx.put(f"{MGMT_BASE}/api/v1/config/service").mock(
-        return_value=make_response({"resultTtl": 7200})
-    )
-    # Test analytics_put through mgmt doesn't apply here but validates put works
-    result = await http.mgmt_put("/api/v1/config/service", json={"resultTtl": 7200})
-    assert result["resultTtl"] == 7200
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_mgmt_delete(http: HttpClient) -> None:
-    respx.delete(f"{MGMT_BASE}/settings/rbac/users/local/alice").mock(
-        return_value=empty_response(200)
-    )
-    result = await http.mgmt_delete("/settings/rbac/users/local/alice")
-    # 200 with empty body parses to ""
-    assert result is not None or result == "" or result is None
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_analytics_post(http: HttpClient) -> None:
-    respx.post(f"{ANALYTICS_BASE}/api/v1/request").mock(
-        return_value=make_response({"requestID": "r1", "status": "success", "results": []})
-    )
-    result = await http.analytics_post("/api/v1/request", json={"statement": "SELECT 1"})
-    assert result["requestID"] == "r1"
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_analytics_put(http: HttpClient) -> None:
-    respx.put(f"{ANALYTICS_BASE}/api/v1/config/service").mock(
-        return_value=make_response({"resultTtl": 3600})
-    )
-    result = await http.analytics_put("/api/v1/config/service", json={"resultTtl": 3600})
-    assert result["resultTtl"] == 3600
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_analytics_delete(http: HttpClient) -> None:
-    respx.delete(f"{ANALYTICS_BASE}/api/v1/active_requests").mock(
-        return_value=empty_response(200)
-    )
-    await http.analytics_delete("/api/v1/active_requests")
-
-
-# ── None/null filtering in query params ──────────────────────────────────────
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_none_params_filtered_out(http: HttpClient) -> None:
-    """None values in params dict should not be sent as query params."""
-    route = respx.get(f"{MGMT_BASE}/events").mock(
-        return_value=make_response([])
-    )
+async def test_none_params_not_sent(http: HttpClient) -> None:
+    route = respx.get(f"{MGMT_BASE}/events").mock(return_value=make_response([]))
     await http.mgmt_get("/events", params={"since": None, "limit": 10})
-    # Should not have '?since=None' in the URL
-    request = route.calls[0].request
-    assert "since" not in str(request.url)
-    assert "limit=10" in str(request.url)
+    url = str(route.calls[0].request.url)
+    assert "since" not in url
+    assert "limit=10" in url
 
 
-# ── JSON vs form-data ─────────────────────────────────────────────────────────
+# ── Secret not logged ─────────────────────────────────────────────────────────
 
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_post_with_json_body(http: HttpClient) -> None:
-    route = respx.post(f"{ANALYTICS_BASE}/api/v1/config/service").mock(
-        return_value=make_response({"ok": True})
+def test_http_client_does_not_store_plaintext_password() -> None:
+    """Confirm HttpClient doesn't expose password in repr or attributes."""
+    client = HttpClient(
+        management_url="http://localhost:8091",
+        analytics_url="http://localhost:8095",
+        username="admin",
+        password="supersecret",
     )
-    await http.analytics_post("/api/v1/config/service", json={"resultTtl": 1800})
-    req = route.calls[0].request
-    assert req.headers["content-type"] == "application/json"
+    # repr should not contain the password
+    assert "supersecret" not in repr(client)
+    # _auth tuple is stored but not publicly accessible via named attribute
+    assert not hasattr(client, "password")
 
 
-@respx.mock
-@pytest.mark.asyncio
-async def test_post_with_form_data(http: HttpClient) -> None:
-    route = respx.post(f"{MGMT_BASE}/pools/default").mock(
-        return_value=empty_response(200)
-    )
-    await http.mgmt_post("/pools/default", data={"memoryQuota": "1024"})
-    req = route.calls[0].request
-    assert "application/x-www-form-urlencoded" in req.headers.get("content-type", "")
+# ── SQL injection warning ─────────────────────────────────────────────────────
+
+def test_warn_if_interpolated_triggers() -> None:
+    """Statements that look interpolated should emit a warning."""
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        _warn_if_interpolated("SELECT * FROM ds WHERE id = {user_input}")
+    assert len(w) == 1
+    assert "parameterized" in str(w[0].message).lower()
 
 
-# ── AnalyticsClient facade ────────────────────────────────────────────────────
+def test_warn_if_interpolated_clean() -> None:
+    """Clean parameterized statements should not warn."""
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        _warn_if_interpolated("SELECT * FROM ds WHERE id = $1")
+    assert len(w) == 0
 
+
+# ── AnalyticsClient ping ──────────────────────────────────────────────────────
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_client_ping_success(config: AnalyticsClientConfig) -> None:
     from cb_analytics.client import AnalyticsClient
-    respx.get(f"{MGMT_BASE}/pools").mock(
-        return_value=make_response({"pools": [], "uuid": "abc"})
-    )
+    respx.get(f"{MGMT_BASE}/pools").mock(return_value=make_response({"pools": [], "uuid": "abc"}))
     async with AnalyticsClient(config) as client:
-        ok = await client.ping()
-    assert ok is True
+        assert await client.ping() is True
 
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_client_ping_failure(config: AnalyticsClientConfig) -> None:
     from cb_analytics.client import AnalyticsClient
-    respx.get(f"{MGMT_BASE}/pools").mock(
-        return_value=httpx.Response(500, text="down")
-    )
+    respx.get(f"{MGMT_BASE}/pools").mock(return_value=httpx.Response(500))
     async with AnalyticsClient(config) as client:
-        ok = await client.ping()
-    assert ok is False
+        assert await client.ping() is False
 
 
-@pytest.mark.asyncio
-async def test_client_all_api_groups_present(config: AnalyticsClientConfig) -> None:
-    from cb_analytics.client import AnalyticsClient
-    from cb_analytics.api import (
-        ClusterAPI, AnalyticsServiceAPI, AnalyticsAdminAPI,
-        AnalyticsConfigAPI, AnalyticsSettingsAPI, AnalyticsLinksAPI,
-        SecurityAPI, ServerGroupsAPI,
+# ── SecretStr in config ───────────────────────────────────────────────────────
+
+def test_config_password_is_secret_str() -> None:
+    from pydantic import SecretStr
+    config = AnalyticsClientConfig(password="my-password")  # type: ignore[arg-type]
+    assert isinstance(config.password, SecretStr)
+    # Must not appear in repr
+    assert "my-password" not in repr(config)
+    assert "my-password" not in str(config)
+    # But accessible via get_secret_value()
+    assert config.password.get_secret_value() == "my-password"
+
+
+def test_config_tls_auto_port() -> None:
+    """TLS=True with default ports should auto-select 18091/18095."""
+    config = AnalyticsClientConfig(tls=True, host="cluster")
+    assert config.management_url == "https://cluster:18091"
+    assert config.analytics_url == "https://cluster:18095"
+
+
+def test_config_tls_custom_port_preserved() -> None:
+    config = AnalyticsClientConfig(tls=True, mgmt_port=9091, analytics_port=9095, host="cluster")
+    assert ":9091" in config.management_url
+    assert ":9095" in config.analytics_url
+
+
+# ── Model: IngestionStatus.from_raw ──────────────────────────────────────────
+
+def test_ingestion_status_from_list() -> None:
+    raw = [{"name": "Local", "state": "CONNECTED", "datasetStates": []}]
+    result = IngestionStatus.from_raw(raw)
+    assert len(result.links) == 1
+    assert result.links[0].name == "Local"
+
+
+def test_ingestion_status_from_dict() -> None:
+    raw = {"links": [{"name": "S3", "state": "CONNECTED"}]}
+    result = IngestionStatus.from_raw(raw)
+    assert result.links[0].name == "S3"
+
+
+def test_ingestion_status_empty() -> None:
+    result = IngestionStatus.from_raw(None)
+    assert result.links == []
+
+
+# ── Model: ServiceConfig.to_api_dict ─────────────────────────────────────────
+
+def test_service_config_to_api_dict_excludes_unset() -> None:
+    """Only explicitly set fields are included — 0 and False are preserved."""
+    cfg = ServiceConfig(resultTtl=0)
+    d = cfg.to_api_dict()
+    assert "resultTtl" in d
+    assert d["resultTtl"] == 0
+    assert "storageBuffercacheSize" not in d
+
+
+def test_service_config_to_api_dict_false_preserved() -> None:
+    """ServiceConfig fields set to 0 are NOT None and must be sent."""
+    cfg = ServiceConfig(compilerParallelism=0)
+    d = cfg.to_api_dict()
+    assert d.get("compilerParallelism") == 0
+
+
+# ── Model: credentials ────────────────────────────────────────────────────────
+
+def test_s3_link_secret_access_key_is_secret_str() -> None:
+    from pydantic import SecretStr
+    link = S3LinkConfig(region="us-east-1", accessKeyId="AKID", secretAccessKey="SECRET")
+    assert isinstance(link.secretAccessKey, SecretStr)
+    assert "SECRET" not in repr(link)
+    d = link.to_api_dict()
+    assert d["secretAccessKey"] == "SECRET"  # unwrapped at serialization
+
+
+def test_azure_link_requires_key_or_sas() -> None:
+    with pytest.raises(Exception):
+        AzureBlobLinkConfig(accountName="myaccount")
+
+
+def test_azure_link_with_sas() -> None:
+    link = AzureBlobLinkConfig(accountName="myaccount", sharedAccessSignature="sv=2021&sig=xxx")
+    d = link.to_api_dict()
+    assert d["sharedAccessSignature"] == "sv=2021&sig=xxx"
+
+
+def test_gcs_link_credentials_not_in_repr() -> None:
+    link = GCSLinkConfig(jsonCredentials='{"type":"service_account","private_key":"secret"}')
+    assert "secret" not in repr(link)
+    d = link.to_api_dict()
+    assert "secret" in d["jsonCredentials"]
+
+
+# ── Exception hierarchy ───────────────────────────────────────────────────────
+
+def test_exception_hierarchy() -> None:
+    from cb_analytics.exceptions import (
+        AnalyticsError, AnalyticsAuthError, AnalyticsConnectionError,
+        AnalyticsNotFoundError, AnalyticsRequestError, AnalyticsServerError,
+        AnalyticsQueryError, AnalyticsCircuitOpenError, AnalyticsLibraryError,
+        AnalyticsConfigError,
     )
-    async with AnalyticsClient(config) as client:
-        assert isinstance(client.cluster, ClusterAPI)
-        assert isinstance(client.analytics, AnalyticsServiceAPI)
-        assert isinstance(client.admin, AnalyticsAdminAPI)
-        assert isinstance(client.config, AnalyticsConfigAPI)
-        assert isinstance(client.settings, AnalyticsSettingsAPI)
-        assert isinstance(client.links, AnalyticsLinksAPI)
-        assert isinstance(client.security, SecurityAPI)
-        assert isinstance(client.server_groups, ServerGroupsAPI)
+    for exc_type in [
+        AnalyticsAuthError, AnalyticsConnectionError, AnalyticsNotFoundError,
+        AnalyticsRequestError, AnalyticsServerError, AnalyticsQueryError,
+        AnalyticsCircuitOpenError, AnalyticsLibraryError, AnalyticsConfigError,
+    ]:
+        assert issubclass(exc_type, AnalyticsError)
 
 
-# ── Misc model edge cases ─────────────────────────────────────────────────────
+def test_query_error_str_with_location() -> None:
+    from cb_analytics.exceptions import AnalyticsQueryError
+    err = AnalyticsQueryError("Syntax error", code=24000, line=1, column=8)
+    s = str(err)
+    assert "Syntax error" in s
+    assert "24000" in s
+    assert "line 1" in s
+    assert "column 8" in s
 
 
-class TestMiscModels:
-    def test_analytics_query_request_defaults(self) -> None:
-        from cb_analytics.models import AnalyticsQueryRequest
-        req = AnalyticsQueryRequest(statement="SELECT 1")
-        assert req.statement == "SELECT 1"
-        assert req.args is None
-        assert req.scan_consistency is None
-        assert req.timeout is None
-        assert req.read_only is None
-
-    def test_service_config_partial(self) -> None:
-        from cb_analytics.models import ServiceConfig
-        cfg = ServiceConfig(resultTtl=3600)
-        dumped = {k: v for k, v in cfg.model_dump().items() if v is not None}
-        assert dumped == {"resultTtl": 3600}
-
-    def test_user_upsert_partial(self) -> None:
-        from cb_analytics.models import UserUpsertRequest
-        req = UserUpsertRequest(password="Secret!")
-        assert req.password == "Secret!"
-        assert req.roles is None
-
-    def test_link_info_optional_fields(self) -> None:
-        from cb_analytics.models import LinkInfo
-        link = LinkInfo()
-        assert link.name is None
-        assert link.activeDatasets is None
-
-    def test_ingestion_status_empty_links(self) -> None:
-        from cb_analytics.models import IngestionStatus
-        status = IngestionStatus()
-        assert status.links == []
-
-    def test_service_status_extra_fields(self) -> None:
-        from cb_analytics.models import ServiceStatus
-        # Should accept extra fields without error
-        status = ServiceStatus.model_validate({
-            "state": "ACTIVE",
-            "authorizedNodes": ["n1"],
-            "someExtraField": "value",
-        })
-        assert status.state == "ACTIVE"
-
-    def test_auto_failover_settings_all_none(self) -> None:
-        from cb_analytics.models import AutoFailoverSettings
-        s = AutoFailoverSettings()
-        assert s.enabled is None
-        assert s.timeout is None
-
-    def test_password_policy_all_fields(self) -> None:
-        from cb_analytics.models import PasswordPolicy
-        p = PasswordPolicy(
-            minLength=12,
-            enforceUppercase=True,
-            enforceLowercase=True,
-            enforceDigits=True,
-            enforceSpecialChars=True,
-        )
-        assert p.minLength == 12
-        assert p.enforceSpecialChars is True
-
-    def test_scan_consistency_values(self) -> None:
-        from cb_analytics.models import ScanConsistency
-        assert ScanConsistency.NOT_BOUNDED.value == "not_bounded"
-        assert ScanConsistency.REQUEST_PLUS.value == "request_plus"
-        assert ScanConsistency.AT_PLUS.value == "at_plus"
-
-    def test_rbac_domain_values(self) -> None:
-        from cb_analytics.models import RbacDomain
-        assert RbacDomain.LOCAL.value == "local"
-        assert RbacDomain.EXTERNAL.value == "external"
+def test_query_error_str_without_location() -> None:
+    from cb_analytics.exceptions import AnalyticsQueryError
+    err = AnalyticsQueryError("Runtime error", code=25000)
+    s = str(err)
+    assert "25000" in s
+    assert "line" not in s

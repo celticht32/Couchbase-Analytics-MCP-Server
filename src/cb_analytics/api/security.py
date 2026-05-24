@@ -1,16 +1,12 @@
 # Copyright (c) 2026 Chris Ahrendt
 # SPDX-License-Identifier: MIT
-# See LICENSE file in the project root for full license information.
-
 """
-Security & RBAC API implementation.
+Security & RBAC API — all credential fields use to_api_dict().
 
-Covers all endpoints documented in the Security API section:
-  - General security (audit, TLS, HSTS)
-  - Authentication (LDAP, SAML, saslauthd, password policy)
-  - Authorization (RBAC users, groups, roles)
-  - Certificate management (trusted CAs, node certs)
-  - System secrets management
+Bug fixes vs v1.0:
+  - UserUpsertRequest.to_api_dict() unwraps SecretStr password
+  - LdapSettings.to_api_dict() unwraps SecretStr bindPass
+  - configure_auto_failover-style fix: exclude_unset preserves False
 """
 
 from __future__ import annotations
@@ -36,12 +32,7 @@ from cb_analytics.models import (
 
 
 class SecurityAPI:
-    """
-    Security, authentication, and authorization API.
-
-    Manages RBAC users/groups/roles, TLS certificates, LDAP/SAML
-    configuration, auditing, and system secrets.
-    """
+    """Security, authentication, and authorization API."""
 
     def __init__(self, http: HttpClient) -> None:
         self._http = http
@@ -49,28 +40,28 @@ class SecurityAPI:
     # ── General Security ──────────────────────────────────────────────────────
 
     async def get_audit_settings(self) -> AuditSettings:
-        """GET /settings/audit — return current audit configuration."""
+        """GET /settings/audit."""
         raw = await self._http.mgmt_get("/settings/audit")
         return AuditSettings.model_validate(raw)
 
     async def configure_audit(self, settings: AuditSettings) -> None:
-        """POST /settings/audit — enable/disable auditing and set options."""
-        payload = {k: v for k, v in settings.model_dump().items() if v is not None}
+        """POST /settings/audit."""
+        payload = {k: v for k, v in settings.model_dump(exclude_unset=True).items()}
         await self._http.mgmt_post("/settings/audit", json=payload)
 
     async def get_audit_descriptors(self) -> list[dict[str, Any]]:
-        """GET /settings/audit/descriptors — return auditable event descriptors."""
+        """GET /settings/audit/descriptors."""
         raw = await self._http.mgmt_get("/settings/audit/descriptors")
         return raw if isinstance(raw, list) else []
 
     async def get_security_settings(self) -> SecuritySettings:
-        """GET /settings/security — return general security settings."""
+        """GET /settings/security."""
         raw = await self._http.mgmt_get("/settings/security")
         return SecuritySettings.model_validate(raw)
 
     async def update_security_settings(self, settings: SecuritySettings) -> None:
-        """POST /settings/security — update allowed hosts and TLS settings."""
-        payload = {k: v for k, v in settings.model_dump().items() if v is not None}
+        """POST /settings/security."""
+        payload = {k: v for k, v in settings.model_dump(exclude_unset=True).items()}
         await self._http.mgmt_post("/settings/security", json=payload)
 
     async def rotate_internal_credentials(self) -> None:
@@ -78,7 +69,7 @@ class SecurityAPI:
         await self._http.mgmt_post("/node/controller/rotateInternalCredentials")
 
     async def get_response_headers_settings(self) -> dict[str, Any]:
-        """GET /settings/security/responseHeaders — HSTS and security header config."""
+        """GET /settings/security/responseHeaders."""
         return await self._http.mgmt_get("/settings/security/responseHeaders") or {}
 
     async def set_response_headers_settings(self, settings: dict[str, Any]) -> None:
@@ -90,13 +81,11 @@ class SecurityAPI:
         await self._http.mgmt_delete("/settings/security/responseHeaders")
 
     async def get_on_wire_security_settings(self, service: str | None = None) -> dict[str, Any]:
-        """GET /settings/security[/{service}] — TLS cipher and protocol settings."""
+        """GET /settings/security[/{service}] — TLS cipher and protocol config."""
         path = f"/settings/security/{service}" if service else "/settings/security"
         return await self._http.mgmt_get(path) or {}
 
-    async def set_on_wire_security_settings(
-        self, settings: dict[str, Any], service: str | None = None
-    ) -> None:
+    async def set_on_wire_security_settings(self, settings: dict[str, Any], service: str | None = None) -> None:
         """POST /settings/security[/{service}]."""
         path = f"/settings/security/{service}" if service else "/settings/security"
         await self._http.mgmt_post(path, json=settings)
@@ -104,27 +93,26 @@ class SecurityAPI:
     # ── Authentication ────────────────────────────────────────────────────────
 
     async def get_ldap_settings(self) -> LdapSettings:
-        """GET /settings/ldap — return LDAP authentication configuration."""
+        """GET /settings/ldap."""
         raw = await self._http.mgmt_get("/settings/ldap")
         return LdapSettings.model_validate(raw)
 
     async def configure_ldap(self, settings: LdapSettings) -> None:
-        """POST /settings/ldap — configure LDAP for authentication/authorization."""
-        payload = {k: v for k, v in settings.model_dump(by_alias=True).items() if v is not None}
-        await self._http.mgmt_post("/settings/ldap", json=payload)
+        """POST /settings/ldap — bindPass is unwrapped from SecretStr safely."""
+        await self._http.mgmt_post("/settings/ldap", json=settings.to_api_dict())
 
     async def get_saml_settings(self) -> SamlSettings:
-        """GET /settings/saml — return SAML SSO configuration."""
+        """GET /settings/saml."""
         raw = await self._http.mgmt_get("/settings/saml")
         return SamlSettings.model_validate(raw)
 
     async def configure_saml(self, settings: SamlSettings) -> None:
-        """POST /settings/saml — configure SAML for SSO authentication."""
-        payload = {k: v for k, v in settings.model_dump().items() if v is not None}
+        """POST /settings/saml."""
+        payload = {k: v for k, v in settings.model_dump(exclude_unset=True).items()}
         await self._http.mgmt_post("/settings/saml", json=payload)
 
     async def get_saslauthd_settings(self) -> dict[str, Any]:
-        """GET /settings/saslauthdAuth — return saslauthd configuration."""
+        """GET /settings/saslauthdAuth."""
         return await self._http.mgmt_get("/settings/saslauthdAuth") or {}
 
     async def configure_saslauthd(self, settings: dict[str, Any]) -> None:
@@ -137,18 +125,18 @@ class SecurityAPI:
         return PasswordPolicy.model_validate(raw)
 
     async def set_password_policy(self, policy: PasswordPolicy) -> None:
-        """POST /settings/passwordPolicy."""
-        payload = {k: v for k, v in policy.model_dump().items() if v is not None}
+        """POST /settings/passwordPolicy — preserves False values correctly."""
+        payload = {k: v for k, v in policy.model_dump(exclude_unset=True).items()}
         await self._http.mgmt_post("/settings/passwordPolicy", json=payload)
 
-    async def change_password(self, password: str) -> None:
+    async def change_password(self, new_password: str) -> None:
         """POST /controller/changePassword — change the authenticated user's password."""
-        await self._http.mgmt_post("/controller/changePassword", data={"password": password})
+        await self._http.mgmt_post("/controller/changePassword", data={"password": new_password})
 
     # ── Certificate Management ────────────────────────────────────────────────
 
     async def load_trusted_cas(self, pem_data: str) -> list[TrustedCA]:
-        """POST /node/controller/loadTrustedCAs — upload root CA certificates."""
+        """POST /node/controller/loadTrustedCAs."""
         raw = await self._http.mgmt_post(
             "/node/controller/loadTrustedCAs",
             data={"certificate": pem_data},
@@ -157,7 +145,7 @@ class SecurityAPI:
         return [TrustedCA.model_validate(r) for r in results]
 
     async def get_trusted_cas(self) -> list[TrustedCA]:
-        """GET /node/controller/loadTrustedCAs — list trusted root certificates."""
+        """GET /node/controller/loadTrustedCAs."""
         raw = await self._http.mgmt_get("/node/controller/loadTrustedCAs")
         results = raw if isinstance(raw, list) else []
         return [TrustedCA.model_validate(r) for r in results]
@@ -167,13 +155,13 @@ class SecurityAPI:
         await self._http.mgmt_delete(f"/pools/default/trustedCAs/{ca_id}")
 
     async def get_all_node_certificates(self) -> list[NodeCertificate]:
-        """GET /pools/default/certificates — retrieve certificates for all nodes."""
+        """GET /pools/default/certificates."""
         raw = await self._http.mgmt_get("/pools/default/certificates")
         results = raw if isinstance(raw, list) else []
         return [NodeCertificate.model_validate(r) for r in results]
 
-    async def upload_node_certificate(self) -> dict[str, Any]:
-        """POST /node/controller/reloadCertificate — upload and reload node cert."""
+    async def reload_node_certificate(self) -> dict[str, Any]:
+        """POST /node/controller/reloadCertificate."""
         return await self._http.mgmt_post("/node/controller/reloadCertificate") or {}
 
     async def get_node_certificate(self, address: str) -> NodeCertificate:
@@ -182,22 +170,18 @@ class SecurityAPI:
         return NodeCertificate.model_validate(raw)
 
     async def regenerate_certificates(self) -> None:
-        """POST /controller/regenerateCertificate — regenerate all node certificates."""
+        """POST /controller/regenerateCertificate."""
         await self._http.mgmt_post("/controller/regenerateCertificate")
 
-    # ── Authorization (RBAC) ──────────────────────────────────────────────────
+    # ── RBAC ─────────────────────────────────────────────────────────────────
 
     async def list_roles(self) -> list[dict[str, Any]]:
-        """GET /settings/rbac/roles — list all available roles."""
+        """GET /settings/rbac/roles."""
         raw = await self._http.mgmt_get("/settings/rbac/roles")
         return raw if isinstance(raw, list) else []
 
     async def list_users(self, domain: RbacDomain | None = None) -> list[UserInfo]:
-        """
-        GET /settings/rbac/users[/{domain}]
-
-        List all users. Optionally filter by domain (local or external).
-        """
+        """GET /settings/rbac/users[/{domain}]."""
         path = f"/settings/rbac/users/{domain.value}" if domain else "/settings/rbac/users"
         raw = await self._http.mgmt_get(path)
         results = raw if isinstance(raw, list) else []
@@ -208,37 +192,18 @@ class SecurityAPI:
         raw = await self._http.mgmt_get(f"/settings/rbac/users/{domain.value}/{username}")
         return UserInfo.model_validate(raw)
 
-    async def upsert_user(
-        self,
-        domain: RbacDomain,
-        username: str,
-        request: UserUpsertRequest,
-    ) -> None:
-        """
-        PUT /settings/rbac/users/{domain}/{username}
-
-        Create or replace a user with the given roles and optional group memberships.
-        """
-        payload = {k: v for k, v in request.model_dump().items() if v is not None}
+    async def upsert_user(self, domain: RbacDomain, username: str, request: UserUpsertRequest) -> None:
+        """PUT /settings/rbac/users/{domain}/{username} — password unwrapped safely."""
         await self._http.mgmt_put(
             f"/settings/rbac/users/{domain.value}/{username}",
-            data=payload,
+            data=request.to_api_dict(),
         )
 
-    async def patch_user(
-        self,
-        username: str,
-        request: UserUpsertRequest,
-    ) -> None:
-        """
-        PATCH /settings/rbac/users/local/{username}
-
-        Partially update a local user (e.g., add roles without replacing all).
-        """
-        payload = {k: v for k, v in request.model_dump().items() if v is not None}
+    async def patch_user(self, username: str, request: UserUpsertRequest) -> None:
+        """PATCH /settings/rbac/users/local/{username}."""
         await self._http.mgmt_patch(
             f"/settings/rbac/users/local/{username}",
-            data=payload,
+            data=request.to_api_dict(),
         )
 
     async def delete_user(self, domain: RbacDomain, username: str) -> None:
@@ -246,7 +211,7 @@ class SecurityAPI:
         await self._http.mgmt_delete(f"/settings/rbac/users/{domain.value}/{username}")
 
     async def list_groups(self) -> list[GroupInfo]:
-        """GET /settings/rbac/groups — list all RBAC groups."""
+        """GET /settings/rbac/groups."""
         raw = await self._http.mgmt_get("/settings/rbac/groups")
         results = raw if isinstance(raw, list) else []
         return [GroupInfo.model_validate(g) for g in results]
@@ -257,8 +222,8 @@ class SecurityAPI:
         return GroupInfo.model_validate(raw)
 
     async def upsert_group(self, groupname: str, request: GroupUpsertRequest) -> None:
-        """PUT /settings/rbac/groups/{groupname} — create or replace a group."""
-        payload = {k: v for k, v in request.model_dump(by_alias=True).items() if v is not None}
+        """PUT /settings/rbac/groups/{groupname}."""
+        payload = {k: v for k, v in request.model_dump(by_alias=True, exclude_unset=True).items() if v is not None}
         await self._http.mgmt_put(f"/settings/rbac/groups/{groupname}", data=payload)
 
     async def delete_group(self, groupname: str) -> None:
@@ -266,12 +231,7 @@ class SecurityAPI:
         await self._http.mgmt_delete(f"/settings/rbac/groups/{groupname}")
 
     async def check_permissions(self, request: PermissionCheckRequest) -> dict[str, bool]:
-        """
-        POST /pools/default/checkPermissions
-
-        Check whether the current user has the specified permissions.
-        Returns a dict mapping permission string → bool.
-        """
+        """POST /pools/default/checkPermissions."""
         raw = await self._http.mgmt_post(
             "/pools/default/checkPermissions",
             data={"permissions": request.permissions},
