@@ -1,0 +1,26 @@
+# Copyright (c) 2026 Chris Ahrendt — SPDX-License-Identifier: MIT
+# https://editorconfig.org
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{yml,yaml,json,toml,md,html,css,js,jsx,ts,tsx}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+
+[*.{sh,bash}]
+indent_size = 2
+
+# Don't trim trailing whitespace from markdown — two trailing spaces
+# means line break.
+[*.md]
+trim_trailing_whitespace = false

@@ -1,0 +1,2 @@
+# Place your TLS cert + key here as cert.pem and key.pem.
+# This directory is mounted read-only into the nginx container.

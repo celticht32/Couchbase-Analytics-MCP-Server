@@ -1,0 +1,57 @@
+# Copyright (c) 2026 Chris Ahrendt — SPDX-License-Identifier: MIT
+#
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+#
+# These hooks run on every git commit. They mirror the static checks that
+# CI runs, so a clean commit usually means a clean PR.
+
+repos:
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$    # markdown uses trailing spaces for line breaks
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.0
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        files: ^src/
+        # Keep the deps in sync with pyproject.toml so mypy can resolve them
+        additional_dependencies:
+          - structlog
+          - pydantic
+          - httpx
+          - types-PyYAML
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml", "-q"]
+        files: ^src/
+        additional_dependencies: ["bandit[toml]"]
+
+ci:
+  # GitHub Actions also runs the full deep_scan.sh, so we don't need
+  # pre-commit.ci to also run our hooks.
+  skip: [mypy, bandit]

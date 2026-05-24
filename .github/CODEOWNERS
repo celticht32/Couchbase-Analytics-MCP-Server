@@ -1,0 +1,19 @@
+# Copyright (c) 2026 Chris Ahrendt — SPDX-License-Identifier: MIT
+#
+# These owners will be automatically requested for review when someone
+# opens a PR that modifies the matching files. See:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: every file
+*                       @celticht32
+
+# Critical paths get the same default, but listed explicitly so additions
+# don't accidentally lose review coverage if you add more entries later.
+/.github/               @celticht32
+/src/cb_analytics_mcp/  @celticht32
+/tests/                 @celticht32
+/docs/                  @celticht32
+/.claude/               @celticht32
+/Dockerfile             @celticht32
+/docker-compose.yml     @celticht32
+/pyproject.toml         @celticht32

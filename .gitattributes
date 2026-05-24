@@ -1,0 +1,41 @@
+# Copyright (c) 2026 Chris Ahrendt — SPDX-License-Identifier: MIT
+#
+# Force LF line endings for text files (prevents CRLF damage on Windows
+# checkouts). Mark binary types explicitly.
+
+* text=auto eol=lf
+
+# Source
+*.py    text diff=python
+*.html  text
+*.css   text
+*.js    text
+*.md    text
+*.yml   text
+*.yaml  text
+*.toml  text
+*.json  text
+*.sh    text eol=lf
+*.cfg   text
+*.ini   text
+
+# Templates and config
+Dockerfile text
+Makefile   text
+
+# Binaries
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.gif   binary
+*.pdf   binary
+*.zip   binary
+*.tar   binary
+*.gz    binary
+*.tgz   binary
+*.whl   binary
+
+# Generated artifacts that GitHub should hide in PR diffs
+docs/img/* linguist-generated=true
+src/cb_analytics_mcp/gui/static/js/htmx.min.js linguist-vendored=true

@@ -1,0 +1,35 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+.env
+*.log
+audit.log*
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
+htmlcov/
+.coverage
+.coverage.*
+
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Secrets
+config/clusters.json
+nginx/certs/*
+!nginx/certs/.gitkeep
