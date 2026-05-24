@@ -75,7 +75,7 @@ cb-analytics-mcp/
 │   └── gui/                 # FastAPI + HTMX admin GUI
 ├── tests/unit/              # 286 unit tests, mocked I/O
 ├── docs/                    # MkDocs-ready Markdown
-├── .claude/skills/          # 8 Claude Code skills
+├── skills/                  # 8 Claude Code skills
 ├── scripts/                 # deep_scan.sh, make_screenshots.py
 └── pyproject.toml
 ```
