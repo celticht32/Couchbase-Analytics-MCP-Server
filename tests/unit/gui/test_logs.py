@@ -126,3 +126,174 @@ class TestLogsTailWithFile:
         # All 50 lines fit
         assert "e0" in r.text
         assert "e49" in r.text
+
+
+class TestLogsWebSocket:
+    """WebSocket tail — uses the same fixture as the HTMX tail tests."""
+
+    @pytest.fixture
+    def log_file(self):
+        with tempfile.NamedTemporaryFile(suffix=".log", delete=False) as f:
+            path = Path(f.name)
+        yield path
+        if path.exists():
+            path.unlink()
+
+    @pytest.fixture
+    def ws_client(self, log_file: Path, tmp_audit_file: Path):
+        from prometheus_client import CollectorRegistry
+
+        from cb_analytics_mcp.gui.app import build_app
+        from cb_analytics_mcp.observability.audit import AuditLog
+        from cb_analytics_mcp.observability.metrics import Metrics
+
+        cfg = AppConfig(
+            mcp_api_key=SecretStr("z" * 48),
+            clusters=[],
+            gui=GuiConfig(
+                username="admin",
+                password=SecretStr("test-pass"),
+                session_secret=SecretStr("s" * 48),
+            ),
+            observability=ObservabilityConfig(
+                log_level="WARNING",
+                log_file=str(log_file),
+                audit_log_enabled=True,
+                audit_log_file=str(tmp_audit_file),
+                metrics_enabled=False,
+            ),
+        )
+        app = build_app(
+            cfg,
+            pool=FakePool(),
+            audit=AuditLog(enabled=True, log_file=str(tmp_audit_file)),
+            metrics=Metrics(registry=CollectorRegistry()),
+        )
+        client = TestClient(app)
+        client.__enter__()
+        client.post("/login", data={"username": "admin", "password": "test-pass"})
+        try:
+            yield client, log_file
+        finally:
+            client.__exit__(None, None, None)
+
+    def test_ws_rejects_unauthenticated(self, log_file: Path, tmp_audit_file: Path) -> None:
+        """Anonymous WS connection should be rejected with code 1008."""
+        from prometheus_client import CollectorRegistry
+
+        from cb_analytics_mcp.gui.app import build_app
+        from cb_analytics_mcp.observability.audit import AuditLog
+        from cb_analytics_mcp.observability.metrics import Metrics
+
+        cfg = AppConfig(
+            mcp_api_key=SecretStr("z" * 48),
+            clusters=[],
+            gui=GuiConfig(
+                username="admin",
+                password=SecretStr("test-pass"),
+                session_secret=SecretStr("s" * 48),
+            ),
+            observability=ObservabilityConfig(
+                log_file=str(log_file),
+                audit_log_enabled=False,
+                metrics_enabled=False,
+            ),
+        )
+        app = build_app(
+            cfg,
+            pool=FakePool(),
+            audit=AuditLog(enabled=False),
+            metrics=Metrics(registry=CollectorRegistry()),
+        )
+        with TestClient(app) as anon:
+            # No login; connecting should close with 1008
+            with pytest.raises(Exception):
+                with anon.websocket_connect("/logs/ws") as ws:
+                    # Server should close before we get any message
+                    ws.receive_json()
+
+    def test_ws_sends_hello_and_existing_tail(self, ws_client) -> None:
+        client, log_file = ws_client
+        # Seed two existing lines
+        log_file.write_text(
+            '{"timestamp":"t1","level":"info","event":"existing_1"}\n'
+            '{"timestamp":"t2","level":"info","event":"existing_2"}\n'
+        )
+        with client.websocket_connect("/logs/ws") as ws:
+            hello = ws.receive_json()
+            assert hello["type"] == "hello"
+            assert "pid" in hello
+            # The existing 2 lines come through next
+            msg1 = ws.receive_json()
+            assert msg1["type"] == "log"
+            assert msg1["record"]["event"] == "existing_1"
+            msg2 = ws.receive_json()
+            assert msg2["record"]["event"] == "existing_2"
+
+    def test_ws_streams_new_lines(self, ws_client) -> None:
+        """After connecting, appending a line should push it through the socket."""
+        import os as _os
+        import time
+
+        client, log_file = ws_client
+        log_file.write_text("")  # start empty
+        with client.websocket_connect("/logs/ws") as ws:
+            ws.receive_json()  # hello
+            # Wait a beat to let the server seek to end of file
+            time.sleep(0.3)
+            # Append a new line
+            with log_file.open("a") as fh:
+                fh.write('{"timestamp":"new","level":"warning","event":"appended"}\n')
+                fh.flush()
+                _os.fsync(fh.fileno())
+            # WS should pick it up; receive_json blocks until a message arrives
+            # or the connection closes. Server's poll interval is 0.5s.
+            msg = ws.receive_json()
+            assert msg["type"] == "log"
+            assert msg["record"]["event"] == "appended"
+            assert msg["record"]["level"] == "warning"
+
+    def test_ws_handles_non_json_lines(self, ws_client) -> None:
+        """Plain text lines should arrive wrapped as records."""
+        client, log_file = ws_client
+        log_file.write_text("just a plain log line\n")
+        with client.websocket_connect("/logs/ws") as ws:
+            ws.receive_json()  # hello
+            msg = ws.receive_json()
+            assert msg["type"] == "log"
+            assert msg["record"]["event"] == "just a plain log line"
+
+    def test_ws_no_log_file_sends_error_and_closes(self, tmp_audit_file: Path) -> None:
+        """If LOG_FILE isn't configured, the WS sends an error and closes."""
+        from prometheus_client import CollectorRegistry
+
+        from cb_analytics_mcp.gui.app import build_app
+        from cb_analytics_mcp.observability.audit import AuditLog
+        from cb_analytics_mcp.observability.metrics import Metrics
+
+        cfg = AppConfig(
+            mcp_api_key=SecretStr("z" * 48),
+            clusters=[],
+            gui=GuiConfig(
+                username="admin",
+                password=SecretStr("test-pass"),
+                session_secret=SecretStr("s" * 48),
+            ),
+            observability=ObservabilityConfig(
+                log_file=None,  # not configured
+                audit_log_enabled=False,
+                metrics_enabled=False,
+            ),
+        )
+        app = build_app(
+            cfg,
+            pool=FakePool(),
+            audit=AuditLog(enabled=False),
+            metrics=Metrics(registry=CollectorRegistry()),
+        )
+        with TestClient(app) as client:
+            client.post("/login", data={"username": "admin", "password": "test-pass"})
+            with client.websocket_connect("/logs/ws") as ws:
+                msg = ws.receive_json()
+                assert msg["type"] == "error"
+                assert "LOG_FILE" in msg["message"]

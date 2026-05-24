@@ -80,14 +80,15 @@ class TestBuildServer:
         assert not missing, f"Missing tools: {missing}"
 
     def test_total_tool_count(self) -> None:
-        """Exactly 52 MCP tools should be registered."""
+        """Exactly 55 MCP tools should be registered."""
         import asyncio
 
         mcp, _, _, _ = build_server(_cfg())
         tools = asyncio.run(mcp.list_tools())
-        # 2 meta + 3 schema + 2 query + 7 admin + 4 config + 5 links
-        # + 2 libraries + 9 security + 9 cluster + 9 capella = 52
-        assert len(tools) == 52
+        # 2 meta + 3 schema + 5 query (execute, readonly, paginated, fetch_next, explain)
+        # + 7 admin + 4 config + 5 links + 2 libraries + 9 security
+        # + 9 cluster + 9 capella = 55
+        assert len(tools) == 55
 
     def test_metrics_enabled_starts_server(self, monkeypatch) -> None:
         """When metrics_enabled=True, start_metrics_server is invoked."""

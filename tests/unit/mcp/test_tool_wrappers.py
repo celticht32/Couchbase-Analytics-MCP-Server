@@ -63,12 +63,15 @@ def mcp_with_tools(fake_pool: FakePool):  # type: ignore[no-untyped-def]
     """Build a fresh FastMCP and register every tool group with the FakePool."""
     from mcp.server.fastmcp import FastMCP
 
+    from cb_analytics_mcp.cache import ResultCache
+
     fresh: FastMCP[Any] = FastMCP(name="test-mcp")
     audit = AuditLog(enabled=False)
     metrics = Metrics(registry=CollectorRegistry())
+    cache = ResultCache()
     meta.register(fresh, fake_pool, audit, metrics)  # type: ignore[arg-type]
     schema.register(fresh, fake_pool, audit, metrics)  # type: ignore[arg-type]
-    query.register(fresh, fake_pool, audit, metrics)  # type: ignore[arg-type]
+    query.register(fresh, fake_pool, audit, metrics, cache=cache)  # type: ignore[arg-type]
     admin.register(fresh, fake_pool, audit, metrics)  # type: ignore[arg-type]
     config_tools.register(fresh, fake_pool, audit, metrics)  # type: ignore[arg-type]
     links.register(fresh, fake_pool, audit, metrics)  # type: ignore[arg-type]
@@ -155,6 +158,41 @@ class TestQueryRegistered:
         fake_pool.default().analytics.execute_readonly.return_value = _qr([])
         out = await _call(mcp_with_tools, "execute_query_readonly", statement="SELECT 1")
         assert out["ok"] is True
+
+    @pytest.mark.asyncio
+    async def test_execute_query_paginated(self, mcp_with_tools: Any, fake_pool: FakePool) -> None:
+        fake_pool.default().analytics.execute_readonly.return_value = _qr([{"n": 1}])
+        out = await _call(
+            mcp_with_tools,
+            "execute_query_paginated",
+            statement="SELECT 1",
+            page_size=10,
+        )
+        assert out["ok"] is True
+        assert out["data"]["pagination_handle"].startswith("p_")
+
+    @pytest.mark.asyncio
+    async def test_fetch_next_page(self, mcp_with_tools: Any, fake_pool: FakePool) -> None:
+        # First, get a handle from execute_query_paginated
+        fake_pool.default().analytics.execute_readonly.return_value = _qr([{"n": i} for i in range(10)])
+        first = await _call(
+            mcp_with_tools,
+            "execute_query_paginated",
+            statement="SELECT 1",
+            page_size=10,
+        )
+        handle = first["data"]["pagination_handle"]
+        # Now fetch_next_page
+        fake_pool.default().analytics.execute_readonly.return_value = _qr([])
+        out = await _call(mcp_with_tools, "fetch_next_page", pagination_handle=handle)
+        assert out["ok"] is True
+
+    @pytest.mark.asyncio
+    async def test_explain_query(self, mcp_with_tools: Any, fake_pool: FakePool) -> None:
+        fake_pool.default().analytics.execute_readonly.return_value = _qr([{"plan": "scan"}])
+        out = await _call(mcp_with_tools, "explain_query", statement="SELECT 1")
+        assert out["ok"] is True
+        assert "plan" in out["data"]
 
 
 # ── Admin ────────────────────────────────────────────────────────────────────

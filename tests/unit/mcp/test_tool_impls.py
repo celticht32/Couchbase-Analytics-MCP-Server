@@ -270,6 +270,224 @@ class TestQueryTools:
         assert call.readonly is True
 
 
+class TestQueryCaching:
+    """execute_query_readonly should consult and populate the cache when given one."""
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_then_hit(self, fake_pool: FakePool, fake_client: FakeClient) -> None:
+        from cb_analytics_mcp.cache import ResultCache
+        from cb_analytics_mcp.tools.query import execute_query_readonly_impl
+
+        cache = ResultCache(default_ttl=60)
+        fake_client.analytics.execute_readonly.return_value = _query_response([{"n": 1}])
+
+        # First call → miss, populates cache, returns cached=False
+        first = await execute_query_readonly_impl(fake_pool, "SELECT 1", cache=cache)
+        assert first["data"]["cached"] is False
+        assert fake_client.analytics.execute_readonly.call_count == 1
+
+        # Second identical call → cache hit, no second network call
+        second = await execute_query_readonly_impl(fake_pool, "SELECT 1", cache=cache)
+        assert second["data"]["cached"] is True
+        assert fake_client.analytics.execute_readonly.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_cache_keyed_by_consistency(self, fake_pool: FakePool, fake_client: FakeClient) -> None:
+        """Different scan_consistency = different cache entries."""
+        from cb_analytics_mcp.cache import ResultCache
+        from cb_analytics_mcp.tools.query import execute_query_readonly_impl
+
+        cache = ResultCache(default_ttl=60)
+        fake_client.analytics.execute_readonly.return_value = _query_response([])
+        await execute_query_readonly_impl(fake_pool, "SELECT 1", cache=cache)
+        await execute_query_readonly_impl(fake_pool, "SELECT 1", scan_consistency="request_plus", cache=cache)
+        assert fake_client.analytics.execute_readonly.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_no_cache_falls_back_to_direct_call(
+        self, fake_pool: FakePool, fake_client: FakeClient
+    ) -> None:
+        from cb_analytics_mcp.tools.query import execute_query_readonly_impl
+
+        fake_client.analytics.execute_readonly.return_value = _query_response([])
+        # cache parameter omitted → no caching, original behaviour
+        out = await execute_query_readonly_impl(fake_pool, "SELECT 1")
+        assert out["ok"] is True
+
+
+class TestPaginatedQuery:
+    @pytest.mark.asyncio
+    async def test_first_page_returns_handle(self, fake_pool: FakePool, fake_client: FakeClient) -> None:
+        from cb_analytics_mcp.cache import ResultCache
+        from cb_analytics_mcp.tools.query import execute_query_paginated_impl
+
+        cache = ResultCache()
+        fake_client.analytics.execute_readonly.return_value = _query_response([{"n": i} for i in range(10)])
+        out = await execute_query_paginated_impl(fake_pool, "SELECT * FROM x", page_size=10, cache=cache)
+        assert out["data"]["rows_returned"] == 10
+        assert out["data"]["has_more"] is True
+        assert out["data"]["pagination_handle"].startswith("p_")
+
+    @pytest.mark.asyncio
+    async def test_strips_trailing_limit(self, fake_pool: FakePool, fake_client: FakeClient) -> None:
+        """User's LIMIT clause should be stripped so our pagination wins."""
+        from cb_analytics_mcp.cache import ResultCache
+        from cb_analytics_mcp.tools.query import execute_query_paginated_impl
+
+        cache = ResultCache()
+        fake_client.analytics.execute_readonly.return_value = _query_response([])
+        await execute_query_paginated_impl(fake_pool, "SELECT * FROM x LIMIT 1000", page_size=50, cache=cache)
+        call = fake_client.analytics.execute_readonly.call_args[0][0]
+        # User's LIMIT 1000 should be gone, only our LIMIT 50 OFFSET 0 remains
+        assert "LIMIT 50 OFFSET 0" in call.statement
+        assert "1000" not in call.statement
+
+    @pytest.mark.asyncio
+    async def test_invalid_page_size_rejected(self, fake_pool: FakePool) -> None:
+        from cb_analytics_mcp.cache import ResultCache
+        from cb_analytics_mcp.couchbase.exceptions import AnalyticsRequestError
+        from cb_analytics_mcp.tools.query import execute_query_paginated_impl
+
+        cache = ResultCache()
+        with pytest.raises(AnalyticsRequestError):
+            await execute_query_paginated_impl(fake_pool, "SELECT 1", page_size=0, cache=cache)
+        with pytest.raises(AnalyticsRequestError):
+            await execute_query_paginated_impl(fake_pool, "SELECT 1", page_size=20000, cache=cache)
+
+    @pytest.mark.asyncio
+    async def test_requires_cache(self, fake_pool: FakePool) -> None:
+        from cb_analytics_mcp.tools.query import execute_query_paginated_impl
+
+        with pytest.raises(RuntimeError, match="cache"):
+            await execute_query_paginated_impl(fake_pool, "SELECT 1", cache=None)
+
+
+class TestFetchNextPage:
+    @pytest.mark.asyncio
+    async def test_fetches_next_offset(self, fake_pool: FakePool, fake_client: FakeClient) -> None:
+        from cb_analytics_mcp.cache import ResultCache
+        from cb_analytics_mcp.tools.query import (
+            execute_query_paginated_impl,
+            fetch_next_page_impl,
+        )
+
+        cache = ResultCache()
+        # First page: 100 rows (full page)
+        fake_client.analytics.execute_readonly.return_value = _query_response([{"n": i} for i in range(100)])
+        first = await execute_query_paginated_impl(fake_pool, "SELECT * FROM x", page_size=100, cache=cache)
+        handle = first["data"]["pagination_handle"]
+
+        # Second page: 50 rows (partial → has_more = False)
+        fake_client.analytics.execute_readonly.return_value = _query_response(
+            [{"n": i} for i in range(100, 150)]
+        )
+        second = await fetch_next_page_impl(fake_pool, handle, cache=cache)
+        assert second["data"]["page_offset"] == 100
+        assert second["data"]["rows_returned"] == 50
+        assert second["data"]["has_more"] is False
+        assert second["data"]["total_seen"] == 150
+        # Statement should be the cleaned base + new offset
+        call = fake_client.analytics.execute_readonly.call_args[0][0]
+        assert "OFFSET 100" in call.statement
+
+    @pytest.mark.asyncio
+    async def test_exhausted_handle_is_dropped(self, fake_pool: FakePool, fake_client: FakeClient) -> None:
+        from cb_analytics_mcp.cache import ResultCache
+        from cb_analytics_mcp.tools.query import (
+            execute_query_paginated_impl,
+            fetch_next_page_impl,
+        )
+
+        cache = ResultCache()
+        fake_client.analytics.execute_readonly.return_value = _query_response([{"n": i} for i in range(10)])
+        first = await execute_query_paginated_impl(fake_pool, "SELECT 1", page_size=10, cache=cache)
+        handle = first["data"]["pagination_handle"]
+
+        # Next page returns 0 rows → has_more false, handle dropped
+        fake_client.analytics.execute_readonly.return_value = _query_response([])
+        await fetch_next_page_impl(fake_pool, handle, cache=cache)
+
+        # Handle should no longer be valid
+        assert await cache.get_pagination(handle) is None
+
+    @pytest.mark.asyncio
+    async def test_missing_handle_raises(self, fake_pool: FakePool) -> None:
+        from cb_analytics_mcp.cache import ResultCache
+        from cb_analytics_mcp.couchbase.exceptions import AnalyticsRequestError
+        from cb_analytics_mcp.tools.query import fetch_next_page_impl
+
+        cache = ResultCache()
+        with pytest.raises(AnalyticsRequestError, match="not found or expired"):
+            await fetch_next_page_impl(fake_pool, "p_nope", cache=cache)
+
+
+class TestExplainQuery:
+    @pytest.mark.asyncio
+    async def test_prepends_explain(self, fake_pool: FakePool, fake_client: FakeClient) -> None:
+        from cb_analytics_mcp.tools.query import explain_query_impl
+
+        fake_client.analytics.execute_readonly.return_value = _query_response([{"plan": "Scan(...)"}])
+        out = await explain_query_impl(fake_pool, "SELECT * FROM x")
+        call = fake_client.analytics.execute_readonly.call_args[0][0]
+        assert call.statement.startswith("EXPLAIN ")
+        assert out["data"]["plan"] == [{"plan": "Scan(...)"}]
+
+    @pytest.mark.asyncio
+    async def test_does_not_double_explain(self, fake_pool: FakePool, fake_client: FakeClient) -> None:
+        """If user already wrote EXPLAIN, don't add another."""
+        from cb_analytics_mcp.tools.query import explain_query_impl
+
+        fake_client.analytics.execute_readonly.return_value = _query_response([])
+        await explain_query_impl(fake_pool, "EXPLAIN SELECT * FROM x")
+        call = fake_client.analytics.execute_readonly.call_args[0][0]
+        # Should be exactly one EXPLAIN
+        assert call.statement.upper().count("EXPLAIN") == 1
+
+    @pytest.mark.asyncio
+    async def test_empty_statement_rejected(self, fake_pool: FakePool) -> None:
+        from cb_analytics_mcp.couchbase.exceptions import AnalyticsRequestError
+        from cb_analytics_mcp.tools.query import explain_query_impl
+
+        with pytest.raises(AnalyticsRequestError):
+            await explain_query_impl(fake_pool, "   ")
+
+
+class TestStripTrailingLimit:
+    """Unit tests for the LIMIT-stripping helper used by pagination."""
+
+    def test_strips_simple_limit(self) -> None:
+        from cb_analytics_mcp.tools.query import _strip_trailing_limit
+
+        assert _strip_trailing_limit("SELECT * FROM x LIMIT 10") == "SELECT * FROM x"
+
+    def test_strips_limit_with_offset(self) -> None:
+        from cb_analytics_mcp.tools.query import _strip_trailing_limit
+
+        assert _strip_trailing_limit("SELECT * FROM x LIMIT 10 OFFSET 5") == "SELECT * FROM x"
+
+    def test_strips_with_trailing_semicolon(self) -> None:
+        from cb_analytics_mcp.tools.query import _strip_trailing_limit
+
+        assert _strip_trailing_limit("SELECT 1 LIMIT 100 ;") == "SELECT 1"
+
+    def test_case_insensitive(self) -> None:
+        from cb_analytics_mcp.tools.query import _strip_trailing_limit
+
+        assert _strip_trailing_limit("SELECT 1 limit 5") == "SELECT 1"
+
+    def test_no_limit_unchanged(self) -> None:
+        from cb_analytics_mcp.tools.query import _strip_trailing_limit
+
+        assert _strip_trailing_limit("SELECT * FROM x") == "SELECT * FROM x"
+
+    def test_inline_limit_not_stripped(self) -> None:
+        """A LIMIT inside a subquery (not trailing) shouldn't be touched."""
+        from cb_analytics_mcp.tools.query import _strip_trailing_limit
+
+        stmt = "SELECT x FROM (SELECT * FROM y LIMIT 10) sub"
+        assert _strip_trailing_limit(stmt) == stmt
+
+
 # ── Admin ─────────────────────────────────────────────────────────────────────
 
 
