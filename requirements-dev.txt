@@ -41,17 +41,17 @@ charset-normalizer==3.4.7
     # via requests
 click==8.4.1
     # via uvicorn
-coverage==7.14.0
+coverage==7.14.1
     # via pytest-cov
 cryptography==48.0.0
     # via pyjwt
-cyclonedx-python-lib==11.7.0
+cyclonedx-python-lib==11.8.0
     # via pip-audit
 defusedxml==0.7.1
     # via py-serializable
 fastapi==0.136.3
     # via cb-analytics-mcp (pyproject.toml)
-filelock==3.29.0
+filelock==3.29.1
     # via cachecontrol
 googleapis-common-protos==1.75.0
     # via opentelemetry-exporter-otlp-proto-http
@@ -70,7 +70,7 @@ httpx==0.28.1
     #   respx
 httpx-sse==0.4.3
     # via mcp
-idna==3.16
+idna==3.18
     # via
     #   anyio
     #   httpx
@@ -93,7 +93,7 @@ markdown-it-py==4.2.0
     # via rich
 markupsafe==3.0.3
     # via jinja2
-mcp==1.27.1
+mcp==1.27.2
     # via cb-analytics-mcp (pyproject.toml)
 mdurl==0.1.2
     # via markdown-it-py
@@ -164,7 +164,7 @@ pip-audit==2.10.0
     # via cb-analytics-mcp (pyproject.toml)
 pip-requirements-parser==32.0.1
     # via pip-audit
-platformdirs==4.9.6
+platformdirs==4.10.0
     # via pip-audit
 playwright==1.60.0
     # via cb-analytics-mcp (pyproject.toml)
@@ -188,7 +188,7 @@ pydantic==2.13.4
     #   fastapi
     #   mcp
     #   pydantic-settings
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pydantic-settings==2.14.1
     # via
@@ -211,13 +211,13 @@ pytest==9.0.3
     #   cb-analytics-mcp (pyproject.toml)
     #   pytest-asyncio
     #   pytest-cov
-pytest-asyncio==1.3.0
+pytest-asyncio==1.4.0
     # via cb-analytics-mcp (pyproject.toml)
 pytest-cov==7.1.0
     # via cb-analytics-mcp (pyproject.toml)
 python-dotenv==1.2.2
     # via pydantic-settings
-python-multipart==0.0.29
+python-multipart==0.0.32
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   mcp
@@ -242,13 +242,13 @@ rpds-py==0.30.0
     # via
     #   jsonschema
     #   referencing
-ruff==0.15.14
+ruff==0.15.16
     # via cb-analytics-mcp (pyproject.toml)
 sortedcontainers==2.4.0
     # via cyclonedx-python-lib
 sse-starlette==3.4.4
     # via mcp
-starlette==1.1.0
+starlette==1.2.1
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   fastapi
@@ -292,7 +292,7 @@ typing-inspection==0.4.2
     #   pydantic-settings
 urllib3==2.7.0
     # via requests
-uvicorn==0.47.0
+uvicorn==0.49.0
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   mcp
