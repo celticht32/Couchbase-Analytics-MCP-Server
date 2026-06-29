@@ -8,7 +8,7 @@ annotated-doc==0.0.4
     # via fastapi
 annotated-types==0.7.0
     # via pydantic
-anyio==4.13.0
+anyio==4.14.1
     # via
     #   httpx
     #   mcp
@@ -30,7 +30,7 @@ cachecontrol==0.14.4
     # via
     #   cachecontrol
     #   pip-audit
-certifi==2026.5.20
+certifi==2026.6.17
     # via
     #   httpcore
     #   httpx
@@ -39,23 +39,23 @@ cffi==2.0.0
     # via cryptography
 charset-normalizer==3.4.7
     # via requests
-click==8.4.1
+click==8.4.2
     # via uvicorn
-coverage==7.14.0
+coverage==7.14.3
     # via pytest-cov
 cryptography==48.0.0
     # via pyjwt
-cyclonedx-python-lib==11.7.0
+cyclonedx-python-lib==11.11.0
     # via pip-audit
 defusedxml==0.7.1
     # via py-serializable
-fastapi==0.136.3
+fastapi==0.138.1
     # via cb-analytics-mcp (pyproject.toml)
-filelock==3.29.0
+filelock==3.29.4
     # via cachecontrol
 googleapis-common-protos==1.75.0
     # via opentelemetry-exporter-otlp-proto-http
-greenlet==3.5.1
+greenlet==3.5.3
     # via playwright
 h11==0.16.0
     # via
@@ -70,7 +70,7 @@ httpx==0.28.1
     #   respx
 httpx-sse==0.4.3
     # via mcp
-idna==3.16
+idna==3.18
     # via
     #   anyio
     #   httpx
@@ -93,17 +93,17 @@ markdown-it-py==4.2.0
     # via rich
 markupsafe==3.0.3
     # via jinja2
-mcp==1.27.1
+mcp==1.28.1
     # via cb-analytics-mcp (pyproject.toml)
 mdurl==0.1.2
     # via markdown-it-py
-msgpack==1.1.2
+msgpack==1.2.1
     # via cachecontrol
 mypy==2.1.0
     # via cb-analytics-mcp (pyproject.toml)
 mypy-extensions==1.1.0
     # via mypy
-opentelemetry-api==1.42.1
+opentelemetry-api==1.43.0
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   opentelemetry-exporter-otlp-proto-http
@@ -113,37 +113,37 @@ opentelemetry-api==1.42.1
     #   opentelemetry-instrumentation-httpx
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
-opentelemetry-exporter-otlp-proto-common==1.42.1
+opentelemetry-exporter-otlp-proto-common==1.43.0
     # via opentelemetry-exporter-otlp-proto-http
-opentelemetry-exporter-otlp-proto-http==1.42.1
+opentelemetry-exporter-otlp-proto-http==1.43.0
     # via cb-analytics-mcp (pyproject.toml)
-opentelemetry-instrumentation==0.63b1
+opentelemetry-instrumentation==0.64b0
     # via
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-httpx
-opentelemetry-instrumentation-asgi==0.63b1
+opentelemetry-instrumentation-asgi==0.64b0
     # via opentelemetry-instrumentation-fastapi
-opentelemetry-instrumentation-fastapi==0.63b1
+opentelemetry-instrumentation-fastapi==0.64b0
     # via cb-analytics-mcp (pyproject.toml)
-opentelemetry-instrumentation-httpx==0.63b1
+opentelemetry-instrumentation-httpx==0.64b0
     # via cb-analytics-mcp (pyproject.toml)
-opentelemetry-proto==1.42.1
+opentelemetry-proto==1.43.0
     # via
     #   opentelemetry-exporter-otlp-proto-common
     #   opentelemetry-exporter-otlp-proto-http
-opentelemetry-sdk==1.42.1
+opentelemetry-sdk==1.43.0
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   opentelemetry-exporter-otlp-proto-http
-opentelemetry-semantic-conventions==0.63b1
+opentelemetry-semantic-conventions==0.64b0
     # via
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-httpx
     #   opentelemetry-sdk
-opentelemetry-util-http==0.63b1
+opentelemetry-util-http==0.64b0
     # via
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
@@ -160,11 +160,11 @@ pathspec==1.1.1
     # via mypy
 pip-api==0.0.34
     # via pip-audit
-pip-audit==2.10.0
+pip-audit==2.10.1
     # via cb-analytics-mcp (pyproject.toml)
 pip-requirements-parser==32.0.1
     # via pip-audit
-platformdirs==4.9.6
+platformdirs==4.10.0
     # via pip-audit
 playwright==1.60.0
     # via cb-analytics-mcp (pyproject.toml)
@@ -188,9 +188,9 @@ pydantic==2.13.4
     #   fastapi
     #   mcp
     #   pydantic-settings
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
-pydantic-settings==2.14.1
+pydantic-settings==2.14.2
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   mcp
@@ -206,18 +206,18 @@ pyjwt==2.13.0
     # via mcp
 pyparsing==3.3.2
     # via pip-requirements-parser
-pytest==9.0.3
+pytest==9.1.1
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   pytest-asyncio
     #   pytest-cov
-pytest-asyncio==1.3.0
+pytest-asyncio==1.4.0
     # via cb-analytics-mcp (pyproject.toml)
 pytest-cov==7.1.0
     # via cb-analytics-mcp (pyproject.toml)
 python-dotenv==1.2.2
     # via pydantic-settings
-python-multipart==0.0.29
+python-multipart==0.0.32
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   mcp
@@ -242,13 +242,13 @@ rpds-py==0.30.0
     # via
     #   jsonschema
     #   referencing
-ruff==0.15.14
+ruff==0.15.20
     # via cb-analytics-mcp (pyproject.toml)
 sortedcontainers==2.4.0
     # via cyclonedx-python-lib
-sse-starlette==3.4.4
+sse-starlette==3.4.5
     # via mcp
-starlette==1.1.0
+starlette==1.3.1
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   fastapi
@@ -292,11 +292,11 @@ typing-inspection==0.4.2
     #   pydantic-settings
 urllib3==2.7.0
     # via requests
-uvicorn==0.47.0
+uvicorn==0.49.0
     # via
     #   cb-analytics-mcp (pyproject.toml)
     #   mcp
-wrapt==2.2.1
+wrapt==2.2.2
     # via
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-httpx
